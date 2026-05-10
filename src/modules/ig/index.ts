@@ -57,7 +57,6 @@ export function initIG(): void {
   initialized = true;
 
   GM_addStyle(IG_CSS);
-  (unsafeWindow as unknown as { addToIndiegalaLibrary?: typeof addToIndiegalaLibrary }).addToIndiegalaLibrary = addToIndiegalaLibrary;
   observer = mountObserver(addButtons);
 }
 
