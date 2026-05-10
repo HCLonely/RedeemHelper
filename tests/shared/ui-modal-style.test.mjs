@@ -55,5 +55,10 @@ test('keeps style contract for modern compact-balanced design', () => {
   assert.match(mod.MODAL_STYLES, /\.rh-modal-title\s*\{[\s\S]*font-size:\s*18px;[\s\S]*font-weight:\s*600;/);
   assert.match(mod.MODAL_STYLES, /\.rh-modal-text,[\s\S]*line-height:\s*1\.6;/);
   assert.match(mod.MODAL_STYLES, /\.rh-modal-text,[\s\S]*font-size:\s*14px;/);
+  assert.match(mod.MODAL_STYLES, /\.rh-modal-content input:not\(\[type\]\),[\s\S]*\.rh-modal-content input\[type="text"\],[\s\S]*\.rh-modal-content textarea/);
+  assert.match(mod.MODAL_STYLES, /\.rh-modal-content input:not\(\[type\]\),[\s\S]*border:\s*1px\s+solid\s+#d1d5db;/);
+  assert.match(mod.MODAL_STYLES, /\.rh-modal-content input:not\(\[type\]\),[\s\S]*border-radius:\s*8px;/);
+  assert.match(mod.MODAL_STYLES, /\.rh-modal-content input:not\(\[type\]\),[\s\S]*?(?:^|[\s;])width:\s*100%;/m);
+  assert.match(mod.MODAL_STYLES, /\.rh-modal-content input:not\(\[type\]\):focus,[\s\S]*\.rh-modal-content textarea:focus,[\s\S]*outline:\s*2px\s+solid\s+#93c5fd;/);
   assert.ok(!/transition\s*:|animation\s*:/.test(mod.MODAL_STYLES));
 });

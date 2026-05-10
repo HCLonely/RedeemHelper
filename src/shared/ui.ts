@@ -77,11 +77,34 @@ export const MODAL_STYLES = `
     word-break: break-word;
   }
 
-  .rh-modal-content textarea {
+  .rh-modal-content input:not([type]),
+  .rh-modal-content input[type="text"],
+  .rh-modal-content input[type="password"],
+  .rh-modal-content input[type="number"],
+  .rh-modal-content textarea,
+  .rh-modal-content select {
+    width: 100%;
     max-width: 100%;
+    min-width: 0;
     box-sizing: border-box;
     color: #111827;
     background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  .rh-modal-content input:not([type]):focus,
+  .rh-modal-content input[type="text"]:focus,
+  .rh-modal-content input[type="password"]:focus,
+  .rh-modal-content input[type="number"]:focus,
+  .rh-modal-content textarea:focus,
+  .rh-modal-content select:focus {
+    outline: 2px solid #93c5fd;
+    outline-offset: 1px;
+    border-color: #60a5fa;
   }
 
   .rh-modal-actions {
