@@ -1,20 +1,28 @@
 export {};
 
 declare global {
-  type Platform = 'steam' | 'itch' | 'indiegala' | 'unknown';
+  type Platform = 'steam' | 'ig' | 'itch';
 
   interface UnifiedSettings {
-    newTab: boolean;
-    copyListen: boolean;
-    selectListen: boolean;
-    clickListen: boolean;
-    allKeyListen: boolean;
-    asf: boolean;
-    asfProtocol: 'http' | 'https' | string;
-    asfHost: string;
-    asfPort: string;
-    asfPassword: string;
-    asfBot: string;
+    steam: {
+      newTab: boolean;
+      copyListen: boolean;
+      selectListen: boolean;
+      clickListen: boolean;
+      allKeyListen: boolean;
+      asf: boolean;
+      asfProtocol: 'http' | 'https' | string;
+      asfHost: string;
+      asfPort: number;
+      asfPassword: string;
+      asfBot: string;
+    };
+    ig: {
+      enableButtons: boolean;
+    };
+    itch: {
+      autoClose: boolean;
+    };
   }
 
   type JQueryLike<TElement = HTMLElement> = {

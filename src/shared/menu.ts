@@ -1,24 +1,24 @@
 export interface MenuHandlers {
-  openSettings?: () => void;
-  redeemWithAsf?: () => void;
-  extractLinks?: () => void;
-  redeemAllKeys?: () => void;
+  onOpenSettings?: () => void;
+  onSteamASF?: () => void;
+  onIGBatch?: () => void;
+  onItchExtract?: () => void;
 }
 
-export function registerMenuCommands(handlers: MenuHandlers): void {
-  if (handlers.openSettings) {
-    GM_registerMenuCommand('⚙设置', handlers.openSettings);
+export function registerMenus(handlers: MenuHandlers): void {
+  if (handlers.onOpenSettings) {
+    GM_registerMenuCommand('⚙设置', handlers.onOpenSettings);
   }
 
-  if (handlers.redeemWithAsf) {
-    GM_registerMenuCommand('执行ASF指令', handlers.redeemWithAsf);
+  if (handlers.onSteamASF) {
+    GM_registerMenuCommand('执行ASF指令', handlers.onSteamASF);
   }
 
-  if (handlers.extractLinks) {
-    GM_registerMenuCommand('提取所有链接', handlers.extractLinks);
+  if (handlers.onIGBatch) {
+    GM_registerMenuCommand('入库所有', handlers.onIGBatch);
   }
 
-  if (handlers.redeemAllKeys) {
-    GM_registerMenuCommand('入库所有', handlers.redeemAllKeys);
+  if (handlers.onItchExtract) {
+    GM_registerMenuCommand('提取所有链接', handlers.onItchExtract);
   }
 }
