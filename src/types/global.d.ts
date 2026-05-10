@@ -137,20 +137,16 @@ declare global {
   function GM_xmlhttpRequest<T = unknown>(details: GMRequestDetails<T>): GMRequestObject;
   function GM_setValue(key: string, value: GMValue): void;
   function GM_getValue<T>(key: string, defaultValue?: T): T;
-  function GM_deleteValue(key: string): void;
   function GM_setClipboard(data: string, info?: 'text' | 'html' | { type: 'text' | 'html'; mimetype?: string }, cb?: () => void): void;
   function GM_addStyle(css: string): HTMLStyleElement;
   function GM_registerMenuCommand(name: string, callback: (event?: MouseEvent | KeyboardEvent) => void, options?: { id?: number | string; accessKey?: string; autoClose?: boolean; title?: string }): number | string;
-  function GM_openInTab(url: string, options?: { active?: boolean; insert?: boolean; setParent?: boolean } | boolean): Window | null;
 
   namespace GM {
     function xmlHttpRequest<T = unknown>(details: GMRequestDetails<T>): Promise<GMResponse<T>> & { abort: () => void };
     function setValue(key: string, value: GMValue): Promise<void>;
     function getValue<T>(key: string, defaultValue?: T): Promise<T>;
-    function deleteValue(key: string): Promise<void>;
     function setClipboard(data: string, info?: 'text' | 'html' | { type: 'text' | 'html'; mimetype?: string }): Promise<void>;
     function addStyle(css: string): Promise<HTMLStyleElement>;
     function registerMenuCommand(name: string, callback: (event?: MouseEvent | KeyboardEvent) => void, options?: { id?: number | string; accessKey?: string; autoClose?: boolean; title?: string }): Promise<number | string>;
-    function openInTab(url: string, options?: { active?: boolean; insert?: boolean; setParent?: boolean } | boolean): Window | null;
   }
 }

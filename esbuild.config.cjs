@@ -1,7 +1,7 @@
 const esbuild = require('esbuild');
 const fs = require('fs');
 
-const banner = fs.readFileSync('./src/meta/header.ts', 'utf8').replace(/^export const USER_SCRIPT_HEADER = `|`;$/g, '');
+const banner = fs.readFileSync('./src/meta/header.ts', 'utf8').replace(/^export const USER_SCRIPT_HEADER = `|`;\s*$/g, '');
 
 esbuild.build({
   entryPoints: ['./src/main.ts'],
