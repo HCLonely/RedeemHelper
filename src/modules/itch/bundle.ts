@@ -1,28 +1,17 @@
 import { request } from '../../shared/http';
-import { showModal } from '../../shared/ui';
+import { updateOrShowModal } from '../../shared/ui';
 import { redeemItchGame } from './redeem';
 
 const BUNDLE_URL_RE = /^https?:\/\/itch\.io\/s\/\d+\/.+/i;
 
-function updateModal(options: SwalOptions): void {
-  const updater = (typeof Swal !== 'undefined' ? Swal as unknown as { update?: (options: SwalOptions) => void } : undefined)?.update;
-
-  if (typeof updater === 'function') {
-    updater(options);
-    return;
-  }
-
-  void showModal(options);
-}
-
-function log(message: unknown, icon: SwalIcon = 'info'): void {
+function log(message: unknown, icon: SwalIcon = 'info', details?: string): void {
   if (typeof message !== 'string') {
     console.log(message);
     return;
   }
 
-  updateModal({ title: message, icon, className: 'break-all' });
-  console.log(message);
+  updateOrShowModal({ title: message, text: details, icon, className: 'break-all' });
+  console.log(details ? `${message}\n${details}` : message);
 }
 
 function parseBundleGames(html: string, baseUrl: string): string[] {
@@ -35,7 +24,7 @@ function parseBundleGames(html: string, baseUrl: string): string[] {
 }
 
 export async function getItchBundleGames(url: string): Promise<string[]> {
-  log(`正在获取优惠包信息...<br/>${url}`);
+  log('正在获取优惠包信息...', 'info', url);
 
   const response = await request<string>({
     url,

@@ -17,6 +17,23 @@ export function showModal(optionsOrTitle: SwalOptions | string, text?: string, i
   return Promise.resolve(undefined);
 }
 
+function isModalVisible(): boolean {
+  if (typeof Swal === 'undefined') return false;
+  if (typeof Swal.isVisible === 'function') return Swal.isVisible();
+
+  const popup = typeof Swal.getPopup === 'function' ? Swal.getPopup() : null;
+  return !!popup && popup.offsetParent !== null;
+}
+
+export function updateOrShowModal(options: SwalOptions): void {
+  if (typeof Swal !== 'undefined' && typeof Swal.update === 'function' && isModalVisible()) {
+    Swal.update(options);
+    return;
+  }
+
+  void showModal(options);
+}
+
 function show(icon: SwalIcon, options: string | MessageOptions): Promise<unknown> {
   const title = typeof options === 'string' ? options : options.title;
   const text = typeof options === 'string' ? undefined : options.text;

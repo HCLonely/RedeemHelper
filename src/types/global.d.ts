@@ -54,6 +54,7 @@ declare global {
 
   interface SwalOptions {
     title?: string;
+    titleText?: string;
     text?: string;
     html?: string | HTMLElement;
     icon?: SwalIcon;
@@ -66,6 +67,9 @@ declare global {
   interface SweetAlert2Like {
     fire(options: SwalOptions): Promise<unknown>;
     fire(title: string, text?: string, icon?: SwalIcon): Promise<unknown>;
+    update?: (options: SwalOptions) => void;
+    isVisible?: () => boolean;
+    getPopup?: () => HTMLElement | null;
   }
 
   function swal(options: SwalOptions): Promise<unknown>;

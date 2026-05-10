@@ -1,6 +1,6 @@
 import { request, type RequestResult } from '../../shared/http';
 import { getSettings } from '../../shared/storage';
-import { showModal } from '../../shared/ui';
+import { updateOrShowModal } from '../../shared/ui';
 import { redeemItchBundle } from './bundle';
 
 interface DownloadUrlResponse {
@@ -15,30 +15,20 @@ const GAME_URL_RE = /^https?:\/\/.+?\.itch\.io\/[^/?#]+\/?(?:purchase(?:\?.*)?)?
 const REWARD_PURCHASE_URL_RE = /^https?:\/\/.+?\.itch\.io\/[^/?#]+\/purchase\?[^#]*reward_id=/i;
 const BUNDLE_URL_RE = /^https?:\/\/itch\.io\/s\/\d+\/.+/i;
 
-function updateModal(options: SwalOptions): void {
-  const updater = (typeof Swal !== 'undefined' ? Swal as unknown as { update?: (options: SwalOptions) => void } : undefined)?.update;
-
-  if (typeof updater === 'function') {
-    updater(options);
-    return;
-  }
-
-  void showModal(options);
-}
-
-function log(message: unknown, icon: SwalIcon = 'info'): void {
+function log(message: unknown, icon: SwalIcon = 'info', details?: string): void {
   if (typeof message !== 'string') {
     console.log(message);
     return;
   }
 
-  updateModal({
+  updateOrShowModal({
     title: message,
+    text: details,
     icon,
     className: 'break-all'
   });
 
-  console.log(message);
+  console.log(details ? `${message}\n${details}` : message);
 }
 
 function parseHtml(html: string): Document {
@@ -102,8 +92,8 @@ async function reportRequestFailure(message: string, response: RequestResult<unk
 }
 
 async function checkOwnedAndRedeem(url: string): Promise<void> {
-  log(`当前游戏链接: <br/>${url}`);
-  log(`正在检测游戏是否拥有...<br/>${url}`);
+  log('当前游戏链接:', 'info', url);
+  log('正在检测游戏是否拥有...', 'info', url);
 
   const response = await request<string>({
     url,
@@ -125,7 +115,7 @@ async function checkOwnedAndRedeem(url: string): Promise<void> {
 
 async function purchase(url: string): Promise<void> {
   try {
-    log(`正在加载购买页面...<br/>${url}`);
+    log('正在加载购买页面...', 'info', url);
     const purchaseUrl = url.includes('/purchase') ? url : `${url}/purchase`;
     const response = await request<string>({
       url: purchaseUrl,
@@ -159,7 +149,7 @@ async function purchase(url: string): Promise<void> {
 }
 
 async function download(url: string, csrfToken: string, rewardId?: string): Promise<void> {
-  log(`正在请求下载页面...<br/>${url}`);
+  log('正在请求下载页面...', 'info', url);
 
   const body = new URLSearchParams({ csrf_token: csrfToken });
   if (rewardId) body.set('reward_id', rewardId);
@@ -297,7 +287,7 @@ export function injectItchPurchaseButton(): void {
 }
 
 export async function redeemItchGame(target: string): Promise<void> {
-  log(`当前游戏/优惠包链接: <br/>${target}`);
+  log('当前游戏/优惠包链接:', 'info', target);
 
   if (BUNDLE_URL_RE.test(target)) {
     await redeemItchBundle(target);

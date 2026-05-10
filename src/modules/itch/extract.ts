@@ -1,3 +1,4 @@
+import { updateOrShowModal } from '../../shared/ui';
 import { getItchBundleGames } from './bundle';
 import { redeemItchGame } from './redeem';
 
@@ -5,24 +6,9 @@ const GAME_LINK_RE = /^https?:\/\/.+?\.itch\.io\/[^/?#]+\/?(?:purchase)?$/i;
 const REWARD_LINK_RE = /^https?:\/\/.+?\.itch\.io\/[^/?#]+\/purchase\?[^#]*reward_id=/i;
 const BUNDLE_LINK_RE = /^https?:\/\/itch\.io\/s\/\d+\/.+/i;
 
-function updateModal(options: SwalOptions): void {
-  const updater = (typeof Swal !== 'undefined' ? Swal as unknown as { update?: (options: SwalOptions) => void } : undefined)?.update;
-
-  if (typeof updater === 'function') {
-    updater(options);
-    return;
-  }
-
-  if (typeof Swal !== 'undefined' && Swal?.fire) {
-    void Swal.fire(options);
-  } else if (typeof swal === 'function') {
-    void swal(options);
-  }
-}
-
-function log(message: string, icon: SwalIcon = 'info'): void {
-  updateModal({ title: message, icon, className: 'break-all' });
-  console.log(message);
+function log(message: string, icon: SwalIcon = 'info', details?: string): void {
+  updateOrShowModal({ title: message, text: details, icon, className: 'break-all' });
+  console.log(details ? `${message}\n${details}` : message);
 }
 
 function normalizeHref(href: string): string | null {
@@ -63,7 +49,7 @@ export async function extractAndRedeemItchLinks(): Promise<void> {
 
   const games: string[] = [];
   for (const link of links) {
-    log(`正在处理游戏/优惠包链接: <br/>${link}`);
+    log('正在处理游戏/优惠包链接:', 'info', link);
     games.push(...await expandItchLink(link));
   }
 

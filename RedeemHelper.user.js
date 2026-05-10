@@ -27,16 +27,23 @@
 // ==/UserScript==
 "use strict";
 (() => {
-  // src/modules/ig/index.ts
-  function initIG() {
-  }
-  function runIGBatch() {
+  // src/shared/dom.ts
+  function isHost(host) {
+    const hosts = Array.isArray(host) ? host : [host];
+    const currentHost = window.location.hostname;
+    return hosts.some((candidate) => currentHost === candidate || currentHost.endsWith(`.${candidate}`));
   }
 
-  // src/modules/itch/index.ts
-  function initItch() {
-  }
-  function runItchExtract() {
+  // src/shared/observer.ts
+  function mountObserver(callback) {
+    const observer3 = new MutationObserver(callback);
+    observer3.observe(document.body || document.documentElement, {
+      childList: true,
+      subtree: true,
+      characterData: true
+    });
+    callback();
+    return observer3;
   }
 
   // src/shared/ui.ts
@@ -48,6 +55,19 @@
       return typeof optionsOrTitle === "string" ? Swal.fire(optionsOrTitle, text, icon) : Swal.fire(optionsOrTitle);
     }
     return Promise.resolve(void 0);
+  }
+  function isModalVisible() {
+    if (typeof Swal === "undefined") return false;
+    if (typeof Swal.isVisible === "function") return Swal.isVisible();
+    const popup = typeof Swal.getPopup === "function" ? Swal.getPopup() : null;
+    return !!popup && popup.offsetParent !== null;
+  }
+  function updateOrShowModal(options) {
+    if (typeof Swal !== "undefined" && typeof Swal.update === "function" && isModalVisible()) {
+      Swal.update(options);
+      return;
+    }
+    void showModal(options);
   }
 
   // src/shared/http.ts
@@ -81,11 +101,210 @@
     });
   }
 
-  // src/shared/regex.ts
-  var STEAM_KEY_RE = /\b(?:[A-Z0-9]{5}-){2,4}[A-Z0-9]{5}\b/gi;
-  function extractSteamKeys(input) {
-    const matches = input.match(STEAM_KEY_RE) ?? [];
-    return [...new Set(matches.map((key) => key.toUpperCase()))];
+  // src/modules/ig/addToLib.ts
+  function updateModal(options) {
+    const maybeSwal = typeof Swal !== "undefined" ? Swal : void 0;
+    const updater = maybeSwal?.update;
+    if (typeof updater === "function") {
+      updater(options);
+      return;
+    }
+    void showModal(options);
+  }
+  function parseAddToLibraryRequest(pageHtml, href) {
+    const pageId = pageHtml.match(/dataToSend\.(gala_page_)?id[\s]*?=[\s]*?'(.*?)';/)?.[2];
+    if (!pageId) return null;
+    const csrfToken = pageHtml.match(/<input name="csrfmiddlewaretoken".+?value="(.+?)"/)?.[1];
+    if (!csrfToken) return null;
+    const targetUrl = new URL(href);
+    const gameSlug = targetUrl.pathname.replace(/\//g, "");
+    const subdomain = targetUrl.hostname.replace(".indiegala.com", "");
+    const url = new URL(`/developers/ajax/add-to-library/${pageId}/${gameSlug}/${subdomain}`, targetUrl).href;
+    return { url, csrfToken };
+  }
+  function syncOwnedIndieGalaLinks() {
+    const syncIgLib = unsafeWindow.syncIgLib;
+    if (typeof syncIgLib !== "function") return;
+    void syncIgLib(false, false).then((allGames) => {
+      for (const link of Array.from(document.querySelectorAll('a[href*=".indiegala.com/"]'))) {
+        link.classList.add("ig-checked");
+        try {
+          const href = link.href;
+          const url = new URL(href);
+          if (/^https?:\/\/[\w\d]+?\.indiegala\.com\/.+$/.test(href) && allGames.includes(url.pathname.replace(/\//g, ""))) {
+            link.classList.add("ig-owned");
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    });
+  }
+  async function promptLogin() {
+    const result = await showModal({
+      title: "请先登录！",
+      icon: "error",
+      showCancelButton: true,
+      confirmButtonText: "登录",
+      cancelButtonText: "关闭"
+    });
+    if (result?.value || result?.isConfirmed) {
+      window.open("https://www.indiegala.com/login", "_blank");
+    }
+  }
+  async function addToIndiegalaLibrary(target) {
+    const href = target;
+    void showModal({
+      title: "正在获取入库链接...",
+      text: href,
+      icon: "info"
+    });
+    const pageResponse = await request({
+      url: href,
+      method: "GET",
+      anonymous: false,
+      timeout: 3e4
+    });
+    if (!pageResponse.text) {
+      console.error(pageResponse);
+      updateModal({
+        title: "获取入库链接失败！",
+        text: href,
+        icon: "error"
+      });
+      return null;
+    }
+    if (pageResponse.text.includes("loginRedirect")) {
+      updateModal({
+        title: "请先登录！",
+        text: "https://www.indiegala.com/login",
+        icon: "error"
+      });
+      return null;
+    }
+    const addRequest = parseAddToLibraryRequest(pageResponse.text, href);
+    if (!addRequest) {
+      console.error(pageResponse);
+      updateModal({
+        title: "获取入库Id失败！",
+        text: href,
+        icon: "error"
+      });
+      return null;
+    }
+    updateModal({
+      title: "正在入库...",
+      text: href,
+      icon: "info"
+    });
+    const addResponse = await request({
+      url: addRequest.url,
+      method: "POST",
+      responseType: "json",
+      nocache: true,
+      headers: {
+        "content-type": "application/json",
+        "X-CSRFToken": addRequest.csrfToken,
+        "X-CSRF-Token": addRequest.csrfToken
+      },
+      timeout: 3e4
+    });
+    if (addResponse.data?.status === "ok") {
+      updateModal({
+        title: "入库成功！",
+        text: href,
+        icon: "success"
+      });
+      syncOwnedIndieGalaLinks();
+      return true;
+    }
+    if (addResponse.data?.status === "added") {
+      updateModal({
+        title: "已在库中！",
+        text: href,
+        icon: "warning"
+      });
+      return true;
+    }
+    if (addResponse.data?.status === "login" || addResponse.data?.status === "auth") {
+      await promptLogin();
+      return false;
+    }
+    console.error(addResponse);
+    updateModal({
+      title: "入库失败！",
+      text: href,
+      icon: "error"
+    });
+    return null;
+  }
+
+  // src/modules/ig/index.ts
+  var IG_BUTTON_CLASS = "add-to-library";
+  var IG_PROCESSED_CLASS = "ig-add2lib";
+  var IG_CSS = `.${IG_BUTTON_CLASS}{margin-left:10px;}`;
+  var initialized = false;
+  var observer = null;
+  function isEligibleIndieGalaLink(href) {
+    try {
+      const url = new URL(href);
+      return /^https?:$/.test(url.protocol) && /^.+?\.indiegala\.com$/.test(url.hostname) && !["/login", "/library"].includes(url.pathname) && url.pathname !== "/";
+    } catch {
+      return false;
+    }
+  }
+  function addButtons() {
+    for (const link of Array.from(document.querySelectorAll(`a[href*=".indiegala.com/"]:not(.${IG_PROCESSED_CLASS})`))) {
+      link.classList.add(IG_PROCESSED_CLASS);
+      const href = link.href;
+      if (!isEligibleIndieGalaLink(href)) continue;
+      const button = document.createElement("a");
+      button.className = IG_BUTTON_CLASS;
+      button.href = "javascript:void(0)";
+      button.target = "_self";
+      button.dataset.href = href;
+      button.textContent = "入库";
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        void addToIndiegalaLibrary(href);
+      });
+      link.after(button);
+    }
+  }
+  function collectBatchLinks() {
+    const links = Array.from(document.querySelectorAll(`a.${IG_BUTTON_CLASS}`)).filter((button) => !button.previousElementSibling?.classList.contains("ig-owned")).map((button) => button.dataset.href || "").filter(Boolean);
+    return [...new Set(links)];
+  }
+  function initIG() {
+    if (initialized || isHost("indiegala.com")) return;
+    initialized = true;
+    GM_addStyle(IG_CSS);
+    observer = mountObserver(addButtons);
+  }
+  async function runIGBatch() {
+    if (isHost("indiegala.com")) return;
+    addButtons();
+    const links = collectBatchLinks();
+    const failedLinks = [];
+    for (const link of links) {
+      const result = await addToIndiegalaLibrary(link);
+      if (result === false) break;
+      if (!result) {
+        failedLinks.push(`<a href="${link}" target="_blank">${link}</a>`);
+      }
+    }
+    if (failedLinks.length === 0) {
+      void showModal({
+        title: "全部任务完成！",
+        icon: "success"
+      });
+      return;
+    }
+    void showModal({
+      title: "以下任务未完成！",
+      icon: "warning",
+      html: failedLinks.join("<br/>")
+    });
   }
 
   // src/shared/storage.ts
@@ -132,6 +351,463 @@
   }
   function setSettings(settings) {
     GM_setValue(SETTINGS_KEY, mergeSettings(settings, getSettings()));
+  }
+
+  // src/modules/itch/redeem.ts
+  var GAME_URL_RE = /^https?:\/\/.+?\.itch\.io\/[^/?#]+\/?(?:purchase(?:\?.*)?)?$/i;
+  var REWARD_PURCHASE_URL_RE = /^https?:\/\/.+?\.itch\.io\/[^/?#]+\/purchase\?[^#]*reward_id=/i;
+  var BUNDLE_URL_RE = /^https?:\/\/itch\.io\/s\/\d+\/.+/i;
+  function log(message, icon = "info", details) {
+    if (typeof message !== "string") {
+      console.log(message);
+      return;
+    }
+    updateOrShowModal({
+      title: message,
+      text: details,
+      icon,
+      className: "break-all"
+    });
+    console.log(details ? `${message}
+${details}` : message);
+  }
+  function parseHtml(html) {
+    return new DOMParser().parseFromString(html, "text/html");
+  }
+  function textContent(documentOrElement, selector) {
+    return documentOrElement.querySelector(selector)?.textContent?.trim() || "";
+  }
+  function inputValue(document2, selector) {
+    const element = document2.querySelector(selector);
+    return element?.value || element?.getAttribute("value") || "";
+  }
+  function isFreePurchasePage(document2) {
+    const buttonMessage = document2.querySelector(".button_message");
+    const dollars = buttonMessage?.querySelector(".dollars[itemprop]")?.textContent || "";
+    const buyMessage = buttonMessage?.querySelector(".buy_message")?.textContent || "";
+    const placeholder = document2.querySelector(".money_input")?.placeholder || "";
+    return /0\.00/i.test(dollars) || /0\.00/i.test(placeholder) || /自己出价|Name your own price/i.test(buyMessage);
+  }
+  function isOwnedPageText(html) {
+    return html.includes("purchase_banner_inner");
+  }
+  function isLinkedDownloadPage(document2) {
+    const innerText = textContent(document2, "div.inner_column");
+    return /This page is linked|此页面已链接到帐户/i.test(innerText) || document2.querySelector("a.button.download_btn[data-upload_id]") !== null;
+  }
+  function normalizeGameUrl(target) {
+    let url;
+    try {
+      url = new URL(target, window.location.href);
+    } catch {
+      return null;
+    }
+    if (REWARD_PURCHASE_URL_RE.test(url.href)) return url.href;
+    if (!GAME_URL_RE.test(url.href)) return null;
+    if (url.pathname.endsWith("/purchase")) {
+      url.pathname = url.pathname.replace(/\/purchase\/?$/, "");
+      url.search = "";
+    }
+    url.hash = "";
+    return url.href.replace(/\/$/, "");
+  }
+  async function reportRequestFailure(message, response) {
+    log(message, "error");
+    log(response);
+  }
+  async function checkOwnedAndRedeem(url) {
+    log("当前游戏链接:", "info", url);
+    log("正在检测游戏是否拥有...", "info", url);
+    const response = await request({
+      url,
+      method: "GET"
+    });
+    if (!response.ok || !response.text) {
+      await reportRequestFailure("请求失败！", response);
+      return;
+    }
+    if (isOwnedPageText(response.text)) {
+      log("游戏已拥有！", "success");
+      return;
+    }
+    await purchase(url);
+  }
+  async function purchase(url) {
+    try {
+      log("正在加载购买页面...", "info", url);
+      const purchaseUrl = url.includes("/purchase") ? url : `${url}/purchase`;
+      const response = await request({
+        url: purchaseUrl,
+        method: "GET"
+      });
+      if (!response.ok || !response.text) {
+        await reportRequestFailure("请求失败！", response);
+        return;
+      }
+      const document2 = parseHtml(response.text);
+      if (!isFreePurchasePage(document2)) {
+        log("价格不为 0, 可能活动已结束！", "error");
+        return;
+      }
+      const csrfToken = inputValue(document2, '[name="csrf_token"]');
+      const rewardId = inputValue(document2, '[name="reward_id"]');
+      if (!csrfToken) {
+        log("获取 csrf_token 失败！", "error");
+        return;
+      }
+      await download(purchaseUrl.replace(/\/purchase.*/, ""), csrfToken, rewardId);
+    } catch (error) {
+      log("请求失败！", "error");
+      log(error);
+    }
+  }
+  async function download(url, csrfToken, rewardId) {
+    log("正在请求下载页面...", "info", url);
+    const body = new URLSearchParams({ csrf_token: csrfToken });
+    if (rewardId) body.set("reward_id", rewardId);
+    const response = await request({
+      url: `${url}/download_url`,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+      },
+      data: body.toString(),
+      responseType: "json"
+    });
+    if (response.ok && response.data?.url) {
+      await loadDownload(response.data.url, url);
+      return;
+    }
+    await reportRequestFailure("请求失败！", response);
+  }
+  function downloadHeaders(url, referer) {
+    return {
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+      "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+      DNT: "1",
+      Host: url.hostname,
+      Referer: referer,
+      "Upgrade-Insecure-Requests": "1"
+    };
+  }
+  async function loadDownload(downloadUrl, referer) {
+    log("正在加载下载页面...");
+    const url = new URL(downloadUrl);
+    const response = await request({
+      url: url.href,
+      method: "GET",
+      headers: downloadHeaders(url, referer)
+    });
+    if (!response.ok || !response.text) {
+      await reportRequestFailure("请求失败！", response);
+      return;
+    }
+    const document2 = parseHtml(response.text);
+    const claimButton = Array.from(document2.querySelectorAll("button.button")).find((button) => /link|claim|链接/i.test(button.textContent || ""));
+    const claimForm = document2.querySelector('form[action*="claim-key"]') || claimButton?.closest("form");
+    if (isLinkedDownloadPage(document2)) {
+      log("领取成功！", "success");
+    } else if (claimForm) {
+      const action = claimForm.getAttribute("action");
+      const csrfToken = claimForm.querySelector('input[name="csrf_token"]')?.value || "";
+      if (action && csrfToken) {
+        await claimGame(new URL(action, url.href).href, csrfToken, url.href);
+      } else {
+        log("获取领取表单失败！", "error");
+      }
+    } else if (response.response?.finalUrl?.includes("/register")) {
+      log("领取失败，请先登录！", "error");
+    } else {
+      log("领取完成，结果未知！", "success");
+    }
+    const checker = unsafeWindow.checkItchGame;
+    if (typeof checker === "function") checker();
+  }
+  async function claimGame(action, token, referer) {
+    log("正在领取游戏...");
+    const url = new URL(action);
+    const response = await request({
+      url: url.href,
+      method: "POST",
+      headers: {
+        ...downloadHeaders(url, referer),
+        "Cache-Control": "max-age=0",
+        "Content-Type": "application/x-www-form-urlencoded",
+        Origin: url.origin
+      },
+      data: `csrf_token=${encodeURIComponent(token)}`
+    });
+    if (response.ok && response.text) {
+      const document2 = parseHtml(response.text);
+      log(isLinkedDownloadPage(document2) ? "领取成功！" : "领取完成，结果未知！", "success");
+    } else if (response.response?.finalUrl?.includes("/register")) {
+      log("请先登录！", "error");
+      log(response);
+    } else {
+      await reportRequestFailure("请求失败！", response);
+    }
+  }
+  function handleItchDownloadPage() {
+    for (const button of Array.from(document.querySelectorAll("button.button"))) {
+      if (/link|claim|链接/i.test(button.textContent || "")) button.click();
+    }
+    if (getSettings().itch.autoClose && isLinkedDownloadPage(document)) {
+      window.close();
+    }
+  }
+  function injectItchPurchaseButton() {
+    const directDownloadButton = document.querySelector("a.direct_download_btn");
+    if (/No thanks, just take me to the downloads|不用了，请带我去下载页面/i.test(directDownloadButton?.textContent || "")) {
+      directDownloadButton?.click();
+      return;
+    }
+    if (document.querySelector(".purchase_banner_inner") || !isFreePurchasePage(document)) return;
+    const buyButton = document.querySelector(".buy_btn");
+    if (!buyButton || buyButton.nextElementSibling?.classList.contains("redeem-itch-purchase")) return;
+    const button = document.createElement("a");
+    button.href = "javascript:void(0)";
+    button.target = "_self";
+    button.className = "button redeem-itch-purchase";
+    button.title = "仅支持免费游戏";
+    button.dataset.itchHref = buyButton.href;
+    button.textContent = "后台领取";
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      void redeemItchGame(button.dataset.itchHref || buyButton.href);
+    });
+    buyButton.after(button);
+  }
+  async function redeemItchGame(target) {
+    log("当前游戏/优惠包链接:", "info", target);
+    if (BUNDLE_URL_RE.test(target)) {
+      await redeemItchBundle(target);
+      return;
+    }
+    const url = normalizeGameUrl(target);
+    if (!url) return;
+    await checkOwnedAndRedeem(url);
+  }
+
+  // src/modules/itch/bundle.ts
+  var BUNDLE_URL_RE2 = /^https?:\/\/itch\.io\/s\/\d+\/.+/i;
+  function log2(message, icon = "info", details) {
+    if (typeof message !== "string") {
+      console.log(message);
+      return;
+    }
+    updateOrShowModal({ title: message, text: details, icon, className: "break-all" });
+    console.log(details ? `${message}
+${details}` : message);
+  }
+  function parseBundleGames(html, baseUrl) {
+    const document2 = new DOMParser().parseFromString(html, "text/html");
+    const games = Array.from(document2.querySelectorAll(".game_grid_widget.promo_game_grid a.thumb_link.game_link, a.thumb_link.game_link")).map((link) => new URL(link.href || link.getAttribute("href") || "", baseUrl).href.replace(/\/$/, "")).filter((href) => /^https?:\/\/.+?\.itch\.io\/[^/?#]+$/i.test(href));
+    return [...new Set(games)];
+  }
+  async function getItchBundleGames(url) {
+    log2("正在获取优惠包信息...", "info", url);
+    const response = await request({
+      url,
+      method: "GET"
+    });
+    if (!response.ok || !response.text) {
+      log2("请求失败！", "error");
+      log2(response);
+      return [];
+    }
+    if (response.text.includes("not_active_notification")) {
+      log2("活动已结束！", "error");
+      return [];
+    }
+    return parseBundleGames(response.text, url);
+  }
+  async function redeemItchBundle(url) {
+    if (!BUNDLE_URL_RE2.test(url)) return;
+    const games = await getItchBundleGames(url);
+    for (const game of games) {
+      await redeemItchGame(game);
+    }
+  }
+  async function redeemCurrentItchBundle() {
+    const games = Array.from(document.querySelectorAll(".thumb_link.game_link"));
+    for (const game of games) {
+      await redeemItchGame(game.href);
+    }
+  }
+
+  // src/modules/itch/extract.ts
+  var GAME_LINK_RE = /^https?:\/\/.+?\.itch\.io\/[^/?#]+\/?(?:purchase)?$/i;
+  var REWARD_LINK_RE = /^https?:\/\/.+?\.itch\.io\/[^/?#]+\/purchase\?[^#]*reward_id=/i;
+  var BUNDLE_LINK_RE = /^https?:\/\/itch\.io\/s\/\d+\/.+/i;
+  function log3(message, icon = "info", details) {
+    updateOrShowModal({ title: message, text: details, icon, className: "break-all" });
+    console.log(details ? `${message}
+${details}` : message);
+  }
+  function normalizeHref(href) {
+    try {
+      const url = new URL(href, window.location.href);
+      url.hash = "";
+      if (BUNDLE_LINK_RE.test(url.href) || REWARD_LINK_RE.test(url.href)) return url.href.replace(/\/$/, "");
+      if (!GAME_LINK_RE.test(url.href)) return null;
+      if (url.pathname.endsWith("/purchase")) {
+        url.pathname = url.pathname.replace(/\/purchase\/?$/, "");
+        url.search = "";
+      }
+      return url.href.replace(/\/$/, "");
+    } catch {
+      return null;
+    }
+  }
+  async function expandItchLink(href) {
+    if (BUNDLE_LINK_RE.test(href)) {
+      return getItchBundleGames(href);
+    }
+    const normalized = normalizeHref(href);
+    return normalized ? [normalized] : [];
+  }
+  async function extractAndRedeemItchLinks() {
+    log3("正在提取链接，请稍候...");
+    const links = Array.from(document.querySelectorAll('a[href*="itch.io"]')).filter((link) => !link.classList.contains("itch-io-game-link-owned")).filter((link) => !/itch\.io\/(?:b|c)\//i.test(link.href)).map((link) => link.dataset.itchHref || link.href);
+    const games = [];
+    for (const link of links) {
+      log3("正在处理游戏/优惠包链接:", "info", link);
+      games.push(...await expandItchLink(link));
+    }
+    for (const game of [...new Set(games)]) {
+      await redeemItchGame(game);
+    }
+    log3("全部领取完成！", "success");
+  }
+
+  // src/modules/itch/index.ts
+  var ITCH_PROCESSED_CLASS = "redeem-itch-game";
+  var ITCH_BUTTON_CLASS = "redeem-itch-button";
+  var EXTERNAL_HOSTS = [
+    "keylol.com",
+    "www.steamgifts.com",
+    "www.reddit.com",
+    "new.isthereanydeal.com",
+    "freegames.codes",
+    "itchclaim.tmbpeter.com",
+    "shaigrorb.github.io"
+  ];
+  var ITCH_CSS = `
+.swal2-title.break-all{word-wrap:break-word;word-break:break-all;}
+.${ITCH_BUTTON_CLASS}{margin-left:10px !important;}
+.freegames-codes .${ITCH_BUTTON_CLASS}{margin-top:10px !important;margin-left:0 !important;}
+.shaigrorb-itch-button{position:relative;height:min-content;right:39px;background-color:#16a34a;top:4px;text-decoration-line:none;color:white;font-weight:bold;border-radius:2px;padding:5px;font-size:13px;}
+`;
+  var initialized2 = false;
+  var observer2 = null;
+  function isDownloadPage(url) {
+    return /^https?:\/\/.+\.itch\.io\/[\w-]+\/download(?:\/.*|\?.*)?$/i.test(url);
+  }
+  function isPurchasePage(url) {
+    return /^https?:\/\/.*?itch\.io\/.*?\/purchase(?:\?.*)?$/i.test(url);
+  }
+  function isBundlePage(url) {
+    return /^https?:\/\/itch\.io\/s\/\d+\/.+/i.test(url);
+  }
+  function isEligibleItchHref(href) {
+    try {
+      const url = new URL(href, window.location.href);
+      return /(^|\.)itch\.io$/i.test(url.hostname) && !/itch\.io\/(?:b|c)\//i.test(url.href) && (/^https?:\/\/itch\.io\/s\/\d+\/.+/i.test(url.href) || /^https?:\/\/.+?\.itch\.io\/[^/?#]+\/?(?:purchase(?:\?.*)?)?$/i.test(url.href));
+    } catch {
+      return false;
+    }
+  }
+  function createRedeemButton(href) {
+    const button = document.createElement("a");
+    button.href = "javascript:void(0);";
+    button.target = "_self";
+    button.dataset.itchHref = href;
+    button.textContent = "领取";
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      void redeemItchGame(href);
+    });
+    if (window.location.hostname === "freegames.codes") {
+      button.className = `details__buy ${ITCH_BUTTON_CLASS}`;
+    } else if (window.location.hostname === "shaigrorb.github.io") {
+      button.className = `shaigrorb-itch-button ${ITCH_BUTTON_CLASS}`;
+    } else {
+      button.className = ITCH_BUTTON_CLASS;
+    }
+    return button;
+  }
+  function addExternalRedeemButtons() {
+    for (const link of Array.from(document.querySelectorAll(`a[href*="itch.io"]:not(.${ITCH_PROCESSED_CLASS})`))) {
+      link.classList.add(ITCH_PROCESSED_CLASS);
+      const href = link.href;
+      if (!isEligibleItchHref(href)) continue;
+      const button = createRedeemButton(href);
+      if (window.location.hostname === "shaigrorb.github.io") {
+        const card = link.closest(".item-card");
+        (card || link).after(button);
+      } else {
+        link.after(button);
+      }
+    }
+  }
+  function injectBundleButton() {
+    if (document.querySelector("#redeem-itch-io")) return;
+    const button = document.createElement("button");
+    button.id = "redeem-itch-io";
+    button.className = "button";
+    button.textContent = "后台领取";
+    button.addEventListener("click", () => {
+      void redeemCurrentItchBundle();
+    });
+    const buyRowButton = document.querySelector(".promotion_buy_row .buy_game_btn");
+    if (buyRowButton) {
+      button.setAttribute("style", "font-size:18px;letter-spacing:0.025em;line-height:36px;height:40px;padding:0 20px;margin:0 16px");
+      buyRowButton.after(button);
+      return;
+    }
+    const countdownRow = document.querySelector(".countdown_row");
+    if (!countdownRow) return;
+    const wrapper = document.createElement("div");
+    wrapper.style.width = "100%";
+    button.setAttribute("style", "font-size:18px;letter-spacing:0.025em;line-height:36px;padding:0 20px;margin:10px 30%;width:40%;");
+    wrapper.append(button);
+    countdownRow.prepend(wrapper);
+  }
+  function initItchHostPage() {
+    const url = window.location.href;
+    if (isDownloadPage(url)) {
+      handleItchDownloadPage();
+      return;
+    }
+    if (isPurchasePage(url)) {
+      injectItchPurchaseButton();
+      return;
+    }
+    if (isBundlePage(url)) {
+      injectBundleButton();
+    }
+  }
+  function initItch() {
+    if (initialized2) return;
+    initialized2 = true;
+    GM_addStyle(ITCH_CSS);
+    if (isHost("itch.io")) {
+      initItchHostPage();
+      return;
+    }
+    if (!isHost(EXTERNAL_HOSTS)) return;
+    document.documentElement.classList.toggle("freegames-codes", window.location.hostname === "freegames.codes");
+    observer2 = mountObserver(addExternalRedeemButtons);
+  }
+  async function runItchExtract() {
+    await extractAndRedeemItchLinks();
+  }
+
+  // src/shared/regex.ts
+  var STEAM_KEY_RE = /\b(?:[A-Z0-9]{5}-){2,4}[A-Z0-9]{5}\b/gi;
+  function extractSteamKeys(input) {
+    const matches = input.match(STEAM_KEY_RE) ?? [];
+    return [...new Set(matches.map((key) => key.toUpperCase()))];
   }
 
   // src/modules/steam/settings.ts
@@ -392,11 +1068,11 @@
         case void 0:
           break;
         default: {
-          const inputValue = input.value.trim();
-          if (!inputValue) {
+          const inputValue2 = input.value.trim();
+          if (!inputValue2) {
             showModal({ closeOnClickOutside: false, title: "ASF指令不能为空！", icon: "warning", buttons: { confirm: "确定" } }).then(() => asfSend(command));
           } else {
-            asfRedeem(inputValue);
+            asfRedeem(inputValue2);
           }
         }
       }
@@ -1252,10 +1928,10 @@ table.hclonely .swal-button { padding: 5px; }
 .icon-img { position: absolute; width: 32px; height: 32px; margin: 0!important; }
 .icon-div { width: 32px!important; height: 32px!important; display: none; background: #fff!important; border-radius: 16px!important; box-shadow: 4px 4px 8px #888!important; position: absolute!important; z-index: 2147483647!important; cursor: pointer; }
 `;
-  var initialized = false;
+  var initialized3 = false;
   function initSteam() {
-    if (initialized) return;
-    initialized = true;
+    if (initialized3) return;
+    initialized3 = true;
     try {
       GM_addStyle(STEAM_CSS);
       const url = window.location.href;
