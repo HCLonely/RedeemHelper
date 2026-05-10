@@ -1,8 +1,14 @@
 const SETTINGS_KEY = 'setting';
 
+type PartialUnifiedSettings = {
+  steam?: Partial<UnifiedSettings['steam']>;
+  ig?: Partial<UnifiedSettings['ig']>;
+  itch?: Partial<UnifiedSettings['itch']>;
+};
+
 export const defaultSettings: UnifiedSettings = {
   steam: {
-    newTab: true,
+    newTab: false,
     copyListen: true,
     selectListen: true,
     clickListen: true,
@@ -22,16 +28,27 @@ export const defaultSettings: UnifiedSettings = {
   }
 };
 
-export function getSettings(): UnifiedSettings {
+function mergeSettings(settings: PartialUnifiedSettings = {}, base: UnifiedSettings = defaultSettings): UnifiedSettings {
   return {
-    ...defaultSettings,
-    ...GM_getValue<Partial<UnifiedSettings>>(SETTINGS_KEY, {})
+    steam: {
+      ...base.steam,
+      ...settings.steam
+    },
+    ig: {
+      ...base.ig,
+      ...settings.ig
+    },
+    itch: {
+      ...base.itch,
+      ...settings.itch
+    }
   };
 }
 
-export function setSettings(settings: Partial<UnifiedSettings>): void {
-  GM_setValue(SETTINGS_KEY, {
-    ...getSettings(),
-    ...settings
-  });
+export function getSettings(): UnifiedSettings {
+  return mergeSettings(GM_getValue<PartialUnifiedSettings>(SETTINGS_KEY, {}));
+}
+
+export function setSettings(settings: PartialUnifiedSettings): void {
+  GM_setValue(SETTINGS_KEY, mergeSettings(settings, getSettings()));
 }

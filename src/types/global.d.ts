@@ -119,6 +119,19 @@ declare global {
     abort: () => void;
   }
 
+  interface GMCookie {
+    name: string;
+    value: string;
+  }
+
+  interface GMCookieError {
+    message?: string;
+  }
+
+  const GM_cookie: {
+    list(details: { url: string }, callback: (cookies: GMCookie[], error: GMCookieError | null) => void): void;
+  };
+
   type GMValue = string | number | boolean | null | undefined | object | unknown[];
 
   function GM_xmlhttpRequest<T = unknown>(details: GMRequestDetails<T>): GMRequestObject;
