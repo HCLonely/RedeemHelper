@@ -46,6 +46,116 @@
   // src/shared/ui.ts
   var activeModal = null;
   var stylesInjected = false;
+  var MODAL_STYLES = `
+  .rh-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(17, 24, 39, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 2147483647;
+  }
+
+  .rh-modal {
+    width: min(92vw, 460px);
+    max-height: 88vh;
+    overflow: auto;
+    border-radius: 12px;
+    background: #fff;
+    color: #111827;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+    padding: 20px;
+    box-sizing: border-box;
+    font-family: inherit;
+  }
+
+  .rh-modal-icon {
+    margin: 0 0 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+  }
+
+  .rh-modal--success .rh-modal-icon {
+    color: #166534;
+  }
+
+  .rh-modal--error .rh-modal-icon {
+    color: #b91c1c;
+  }
+
+  .rh-modal--warning .rh-modal-icon {
+    color: #b45309;
+  }
+
+  .rh-modal--info .rh-modal-icon {
+    color: #1d4ed8;
+  }
+
+  .rh-modal-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0 0 10px;
+  }
+
+  .rh-modal-text,
+  .rh-modal-content {
+    margin: 0 0 14px;
+    line-height: 1.55;
+    word-break: break-word;
+  }
+
+  .rh-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .rh-modal-button {
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 8px 14px;
+    background: #e5e7eb;
+    color: #111827;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .rh-modal-button--primary {
+    background: #2563eb;
+    color: #fff;
+  }
+
+  .rh-modal-button--danger {
+    background: #dc2626;
+    color: #fff;
+  }
+
+  .rh-modal-button--secondary {
+    background: #e5e7eb;
+    color: #111827;
+  }
+`;
+  function getModalTone(icon) {
+    if (icon === "success" || icon === "error" || icon === "warning" || icon === "info") {
+      return icon;
+    }
+    return void 0;
+  }
+  function getModalToneClass(icon) {
+    const tone = getModalTone(icon);
+    return tone ? `rh-modal--${tone}` : "";
+  }
+  function getButtonRoleClass(key, tone) {
+    if (key === "confirm") {
+      return tone === "error" ? "rh-modal-button--danger" : "rh-modal-button--primary";
+    }
+    return "rh-modal-button--secondary";
+  }
   function normalizeOptions(optionsOrTitle, text, icon) {
     if (typeof optionsOrTitle === "string") {
       return {
@@ -59,65 +169,7 @@
   function injectStyles() {
     if (stylesInjected) return;
     const style = document.createElement("style");
-    style.textContent = `
-    .rh-modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.45);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 2147483647;
-    }
-
-    .rh-modal {
-      width: min(90vw, 420px);
-      max-height: 85vh;
-      overflow: auto;
-      border-radius: 10px;
-      background: #fff;
-      color: #222;
-      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
-      padding: 16px;
-      box-sizing: border-box;
-      font-family: inherit;
-    }
-
-    .rh-modal-icon {
-      margin: 0 0 8px;
-      font-weight: 600;
-      text-transform: uppercase;
-    }
-
-    .rh-modal-title {
-      font-size: 18px;
-      font-weight: 600;
-      margin: 0 0 8px;
-    }
-
-    .rh-modal-text,
-    .rh-modal-content {
-      margin: 0 0 12px;
-      line-height: 1.5;
-      word-break: break-word;
-    }
-
-    .rh-modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-    }
-
-    .rh-modal-button {
-      border: none;
-      border-radius: 6px;
-      padding: 8px 14px;
-      background: #2f80ed;
-      color: #fff;
-      cursor: pointer;
-      font-size: 14px;
-    }
-  `;
+    style.textContent = MODAL_STYLES;
     const mountTarget = document.head ?? document.documentElement;
     mountTarget.appendChild(style);
     stylesInjected = true;
@@ -149,10 +201,9 @@
       contentEl.appendChild(opts.content);
     }
     contentEl.style.display = contentEl.textContent || contentEl.childNodes.length ? "" : "none";
-    activeModal.modal.className = "rh-modal";
-    if (opts.className) {
-      activeModal.modal.classList.add(...opts.className.split(/\s+/).filter(Boolean));
-    }
+    const toneClass = getModalToneClass(opts.icon);
+    const tone = getModalTone(opts.icon);
+    activeModal.modal.className = `rh-modal${opts.className ? ` ${opts.className}` : ""}${toneClass ? ` ${toneClass}` : ""}`;
     activeModal.closeOnClickOutside = opts.closeOnClickOutside !== false;
     actionsEl.innerHTML = "";
     const buttons = opts.buttons && Object.keys(opts.buttons).length ? opts.buttons : opts.showCancelButton ? {
@@ -162,7 +213,7 @@
     Object.entries(buttons).forEach(([key, config]) => {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "rh-modal-button";
+      button.className = `rh-modal-button ${getButtonRoleClass(key, tone)}`;
       button.textContent = typeof config === "string" ? config : config?.text || key;
       button.addEventListener("click", () => {
         if (key === "cancel") {
