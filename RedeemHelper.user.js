@@ -17,7 +17,6 @@
 // @grant        GM_getValue
 // @grant        GM_xmlhttpRequest
 // @grant        GM_cookie
-// @grant        unsafeWindow
 // @run-at       document-idle
 // @require      https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js
 // @require      https://cdn.jsdelivr.net/npm/sweetalert@2.1.2/dist/sweetalert.min.js
@@ -123,7 +122,7 @@
     return { url, csrfToken };
   }
   function syncOwnedIndieGalaLinks() {
-    const syncIgLib = unsafeWindow.syncIgLib;
+    const syncIgLib = window.syncIgLib;
     if (typeof syncIgLib !== "function") return;
     void syncIgLib(false, false).then((allGames) => {
       for (const link of Array.from(document.querySelectorAll('a[href*=".indiegala.com/"]'))) {
@@ -290,7 +289,7 @@
       const result = await addToIndiegalaLibrary(link);
       if (result === false) break;
       if (!result) {
-        failedLinks.push(`<a href="${link}" target="_blank">${link}</a>`);
+        failedLinks.push(link);
       }
     }
     if (failedLinks.length === 0) {
@@ -301,9 +300,9 @@
       return;
     }
     void showModal({
-      title: "以下任务未完成！",
+      titleText: "以下任务未完成！",
       icon: "warning",
-      html: failedLinks.join("<br/>")
+      text: failedLinks.join("\n")
     });
   }
 
@@ -520,7 +519,7 @@ ${details}` : message);
     } else {
       log("领取完成，结果未知！", "success");
     }
-    const checker = unsafeWindow.checkItchGame;
+    const checker = window.checkItchGame;
     if (typeof checker === "function") checker();
   }
   async function claimGame(action, token, referer) {

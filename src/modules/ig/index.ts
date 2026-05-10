@@ -71,7 +71,7 @@ export async function runIGBatch(): Promise<void> {
     const result = await addToIndiegalaLibrary(link);
     if (result === false) break;
     if (!result) {
-      failedLinks.push(`<a href="${link}" target="_blank">${link}</a>`);
+      failedLinks.push(link);
     }
   }
 
@@ -84,9 +84,9 @@ export async function runIGBatch(): Promise<void> {
   }
 
   void showModal({
-    title: '以下任务未完成！',
+    titleText: '以下任务未完成！',
     icon: 'warning',
-    html: failedLinks.join('<br/>')
+    text: failedLinks.join('\n')
   });
 }
 

@@ -17,7 +17,6 @@ export const USER_SCRIPT_HEADER = `// ==UserScript==
 // @grant        GM_getValue
 // @grant        GM_xmlhttpRequest
 // @grant        GM_cookie
-// @grant        unsafeWindow
 // @run-at       document-idle
 // @require      https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js
 // @require      https://cdn.jsdelivr.net/npm/sweetalert@2.1.2/dist/sweetalert.min.js

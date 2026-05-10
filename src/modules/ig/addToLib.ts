@@ -33,7 +33,7 @@ function parseAddToLibraryRequest(pageHtml: string, href: string): { url: string
 }
 
 function syncOwnedIndieGalaLinks(): void {
-  const syncIgLib = (unsafeWindow as unknown as { syncIgLib?: (force?: boolean, notify?: boolean) => Promise<string[]> }).syncIgLib;
+  const syncIgLib = (window as Window & typeof globalThis & { syncIgLib?: (force?: boolean, notify?: boolean) => Promise<string[]> }).syncIgLib;
   if (typeof syncIgLib !== 'function') return;
 
   void syncIgLib(false, false).then((allGames) => {

@@ -219,7 +219,7 @@ async function loadDownload(downloadUrl: string, referer: string): Promise<void>
     log('领取完成，结果未知！', 'success');
   }
 
-  const checker = (unsafeWindow as ClaimCheckWindow).checkItchGame;
+  const checker = (window as ClaimCheckWindow).checkItchGame;
   if (typeof checker === 'function') checker();
 }
 

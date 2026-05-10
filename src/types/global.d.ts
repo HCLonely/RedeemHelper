@@ -76,7 +76,6 @@ declare global {
   function swal(title: string, text?: string, icon?: SwalIcon): Promise<unknown>;
 
   const Swal: SweetAlert2Like | undefined;
-  const unsafeWindow: Window & typeof globalThis;
   const g_sessionID: string | undefined;
 
   interface GMResponse<T = unknown> {
