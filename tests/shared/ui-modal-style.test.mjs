@@ -48,8 +48,12 @@ test('renderModal wires semantic tone and button role classes', () => {
 
 test('keeps style contract for modern compact-balanced design', () => {
   assert.match(mod.MODAL_STYLES, /width:\s*min\(92vw,\s*460px\)/);
+  assert.match(mod.MODAL_STYLES, /max-height:\s*85vh/);
   assert.match(mod.MODAL_STYLES, /padding:\s*20px/);
   assert.match(mod.MODAL_STYLES, /border-radius:\s*12px/);
   assert.match(mod.MODAL_STYLES, /rgba\(17,\s*24,\s*39,\s*0\.5\)/);
+  assert.match(mod.MODAL_STYLES, /\.rh-modal-title\s*\{[\s\S]*font-size:\s*18px;[\s\S]*font-weight:\s*600;/);
+  assert.match(mod.MODAL_STYLES, /\.rh-modal-text,[\s\S]*line-height:\s*1\.6;/);
+  assert.match(mod.MODAL_STYLES, /\.rh-modal-text,[\s\S]*font-size:\s*14px;/);
   assert.ok(!/transition\s*:|animation\s*:/.test(mod.MODAL_STYLES));
 });
