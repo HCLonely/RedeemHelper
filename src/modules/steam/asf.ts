@@ -1,5 +1,6 @@
-import { extractSteamKeys } from '../../shared/regex';
 import { request } from '../../shared/http';
+import { extractSteamKeys } from '../../shared/regex';
+import { showModal } from '../../shared/ui';
 import { getSteamSettings } from './settings';
 
 type ASFResponse = {
@@ -46,7 +47,7 @@ function htmlToElement(html: string): HTMLElement {
 }
 
 function showASFRequired(): void {
-  swal({
+  showModal({
     closeOnClickOutside: false,
     className: 'swal-user',
     icon: 'warning',
@@ -66,7 +67,7 @@ export function asfSend(command = ''): void {
   input.placeholder = '输入ASF指令';
   input.value = command ? `!${command.replace(/^!/, '')}` : '';
 
-  swal({
+  showModal({
     closeOnClickOutside: false,
     className: 'swal-user',
     text: '请在下方输入要执行的ASF指令：',
@@ -105,7 +106,7 @@ export function asfSend(command = ''): void {
       default: {
         const inputValue = input.value.trim();
         if (!inputValue) {
-          swal({ closeOnClickOutside: false, title: 'ASF指令不能为空！', icon: 'warning', buttons: { confirm: '确定' } }).then(() => asfSend(command));
+          showModal({ closeOnClickOutside: false, title: 'ASF指令不能为空！', icon: 'warning', buttons: { confirm: '确定' } }).then(() => asfSend(command));
         } else {
           asfRedeem(inputValue);
         }
@@ -115,9 +116,8 @@ export function asfSend(command = ''): void {
 }
 
 function showASFCommands(): void {
-  const setting = getSteamSettings();
   const content = htmlToElement(ASF_COMMANDS_HTML);
-  swal({
+  showModal({
     closeOnClickOutside: false,
     className: 'swal-user',
     text: 'ASF指令',
@@ -126,13 +126,6 @@ function showASFCommands(): void {
   }).then((value) => {
     if (value) asfSend();
   });
-
-  content.querySelectorAll('button').forEach((button) => {
-    button.addEventListener('click', () => {
-      const command = button.parentElement?.nextElementSibling?.textContent?.trim() ?? '';
-      asfSend(setting.asfBot ? command.replace(/<Bots>/gim, setting.asfBot) : command);
-    });
-  });
 }
 
 export function swalRedeem(): void {
@@ -140,7 +133,7 @@ export function swalRedeem(): void {
   textarea.id = 'keyText';
   textarea.className = 'asf-output';
 
-  swal({
+  showModal({
     closeOnClickOutside: false,
     className: 'swal-user',
     title: '请输入要激活的key:',
@@ -154,7 +147,7 @@ export function swalRedeem(): void {
         const asfBot = setting.asfBot ? `${setting.asfBot} ` : '';
         asfRedeem(`!redeem ${asfBot}${keys.join(',')}`);
       } else {
-        swal({ closeOnClickOutside: false, title: 'steam key不能为空！', icon: 'error', buttons: { confirm: '返回', cancel: '关闭' } }).then((v) => {
+        showModal({ closeOnClickOutside: false, title: 'steam key不能为空！', icon: 'error', buttons: { confirm: '返回', cancel: '关闭' } }).then((v) => {
           if (v) swalRedeem();
         });
       }
@@ -167,12 +160,12 @@ export function swalRedeem(): void {
 export function asfTest(): void {
   const setting = getSteamSettings();
   if (!setting.asf) {
-    swal({ closeOnClickOutside: false, title: '请先在设置中开启ASF功能', icon: 'warning', buttons: { confirm: '确定' } });
+    showModal({ closeOnClickOutside: false, title: '请先在设置中开启ASF功能', icon: 'warning', buttons: { confirm: '确定' } });
     return;
   }
 
   const apiUrl = getASFUrl(setting);
-  swal({ closeOnClickOutside: false, title: 'ASF连接测试', text: `正在尝试连接 "${apiUrl}"`, buttons: { confirm: '确定' } });
+  showModal({ closeOnClickOutside: false, title: 'ASF连接测试', text: `正在尝试连接 "${apiUrl}"`, buttons: { confirm: '确定' } });
 
   void request<ASFResponse>({
     method: 'POST',
@@ -183,14 +176,14 @@ export function asfTest(): void {
   }).then(({ status, data, text }) => {
     if (status === 200) {
       if (data?.Success === true && data.Message === 'OK' && data.Result) {
-        swal({ closeOnClickOutside: false, title: 'ASF连接成功！', icon: 'success', text: `连接地址 "${apiUrl}" \n返回内容 "${data.Result.trim()}"`, buttons: { confirm: '确定' } });
+        showModal({ closeOnClickOutside: false, title: 'ASF连接成功！', icon: 'success', text: `连接地址 "${apiUrl}" \n返回内容 "${data.Result.trim()}"`, buttons: { confirm: '确定' } });
       } else if (data?.Message) {
-        swal({ closeOnClickOutside: false, title: 'ASF连接成功？', icon: 'info', text: `连接地址 "${apiUrl}" \n返回内容 "${data.Message.trim()}"`, buttons: { confirm: '确定' } });
+        showModal({ closeOnClickOutside: false, title: 'ASF连接成功？', icon: 'info', text: `连接地址 "${apiUrl}" \n返回内容 "${data.Message.trim()}"`, buttons: { confirm: '确定' } });
       } else {
-        swal({ closeOnClickOutside: false, title: 'ASF连接失败！', icon: 'error', text: `连接地址 "${apiUrl}" \n返回内容 "${text ?? ''}"`, buttons: { confirm: '确定' } });
+        showModal({ closeOnClickOutside: false, title: 'ASF连接失败！', icon: 'error', text: `连接地址 "${apiUrl}" \n返回内容 "${text ?? ''}"`, buttons: { confirm: '确定' } });
       }
     } else {
-      swal({ closeOnClickOutside: false, title: `ASF连接失败：${status}`, icon: 'error', text: `连接地址 "${apiUrl}"`, buttons: { confirm: '确定' } });
+      showModal({ closeOnClickOutside: false, title: `ASF连接失败：${status}`, icon: 'error', text: `连接地址 "${apiUrl}"`, buttons: { confirm: '确定' } });
     }
   });
 }
@@ -203,7 +196,7 @@ export function asfRedeem(command: string): void {
   textarea.readOnly = true;
   const isRedeemCommand = /!redeem/gim.test(command);
 
-  swal({
+  showModal({
     closeOnClickOutside: false,
     className: 'swal-user',
     text: `正在执行ASF指令：${command}`,
@@ -219,7 +212,7 @@ export function asfRedeem(command: string): void {
         .join(',');
       if (unusedKeys) {
         GM_setClipboard(extractSteamKeys(unusedKeys).join(','));
-        swal({ title: '复制成功！', icon: 'success' });
+        showModal({ title: '复制成功！', icon: 'success' });
       }
     }
   });
@@ -242,7 +235,7 @@ export function asfRedeem(command: string): void {
       return;
     }
 
-    swal({
+    showModal({
       closeOnClickOutside: false,
       className: 'swal-user',
       title: `执行ASF指令(${command})失败！请检查ASF配置是否正确！`,

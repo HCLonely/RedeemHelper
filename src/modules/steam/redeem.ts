@@ -1,4 +1,5 @@
 import { extractSteamKeys } from '../../shared/regex';
+import { showModal } from '../../shared/ui';
 import { asfRedeem } from './asf';
 import { getSteamSettings } from './settings';
 import { webRedeem } from './steamWeb';
@@ -37,7 +38,8 @@ const state = {
   allUnusedKeys: [] as string[],
   keyCount: 0,
   recvCount: 0,
-  selectorPrefix: '',
+  renderRoot: null as ParentNode | null,
+  popupFlow: false,
   sessionID: ''
 };
 
@@ -70,12 +72,35 @@ export function getSteamSessionID(): string {
   return getSessionID();
 }
 
+export function setRedeemRenderRoot(root: ParentNode, popupFlow = true): void {
+  state.renderRoot = root;
+  state.popupFlow = popupFlow;
+  state.keyCount = 0;
+  state.recvCount = 0;
+  state.allUnusedKeys = [];
+}
+
+export function clearRedeemRenderRoot(root?: ParentNode): void {
+  if ((!root || state.renderRoot === root) && state.recvCount >= state.keyCount) {
+    state.renderRoot = null;
+    state.popupFlow = false;
+  }
+}
+
+function queryRedeemRoot<T extends Element>(selector: string): T | null {
+  return (state.renderRoot ?? document).querySelector<T>(selector);
+}
+
+function queryRedeemRootAll<T extends Element>(selector: string): NodeListOf<T> {
+  return (state.renderRoot ?? document).querySelectorAll<T>(selector);
+}
+
 function table(): HTMLTableElement | null {
-  return document.querySelector<HTMLTableElement>(`${state.selectorPrefix}table`);
+  return queryRedeemRoot<HTMLTableElement>('table');
 }
 
 function tbody(): HTMLTableSectionElement | null {
-  return document.querySelector<HTMLTableSectionElement>(`${state.selectorPrefix}tbody`);
+  return queryRedeemRoot<HTMLTableSectionElement>('tbody');
 }
 
 function createCell(tag: 'td' | 'th', html: string, className?: string): HTMLTableCellElement {
@@ -85,18 +110,42 @@ function createCell(tag: 'td' | 'th', html: string, className?: string): HTMLTab
   return cell;
 }
 
+function createSubCell(subId: number, subName: string): HTMLTableCellElement {
+  const cell = document.createElement('td');
+  if (subId === 0) {
+    cell.textContent = '——';
+    return cell;
+  }
+
+  const code = document.createElement('code');
+  code.textContent = String(subId);
+  const link = document.createElement('a');
+  link.href = `https://steamdb.info/sub/${subId}/`;
+  link.target = '_blank';
+  link.textContent = subName;
+  cell.append(code, ' ', link);
+  return cell;
+}
+
 function setUnusedKeys(key: string, success: boolean, reason: string, subId: number, subName: string): void {
-  const unusedKeys = document.querySelector('#unusedKeys');
+  const unusedKeys = queryRedeemRoot<HTMLOListElement>('#unusedKeys');
   if (!unusedKeys) return;
 
   if (success && state.allUnusedKeys.includes(key)) {
     state.allUnusedKeys = state.allUnusedKeys.filter((keyItem) => keyItem !== key);
     unusedKeys.querySelectorAll('li').forEach((li) => {
-      if (li.innerHTML.includes(key)) li.remove();
+      if (li.textContent?.includes(key)) li.remove();
     });
   } else if (!success && !state.allUnusedKeys.includes(key) && UNUSED_KEY_REASONS.includes(reason)) {
     const li = document.createElement('li');
-    li.innerHTML = `${key} (${reason}${subId !== 0 ? `: <code>${subId}</code> ${subName}` : ''})`;
+    li.append(`${key} (${reason}`);
+    if (subId !== 0) {
+      li.append(': ');
+      const code = document.createElement('code');
+      code.textContent = String(subId);
+      li.append(code, ` ${subName}`);
+    }
+    li.append(')');
     unusedKeys.append(li);
     state.allUnusedKeys.push(key);
   }
@@ -128,12 +177,12 @@ export function tableUpdateKey(key: string, result: string, detail: string, subI
   setUnusedKeys(key, result === texts.success, detail, subId, subName);
   state.recvCount++;
 
-  if (!state.selectorPrefix && state.recvCount === state.keyCount) {
+  if (!state.popupFlow && state.recvCount === state.keyCount) {
     document.querySelector<HTMLElement>('#buttonRedeem, #redeemKey')?.style.removeProperty('display');
     document.querySelector<HTMLTextAreaElement>('#inputKey')?.removeAttribute('disabled');
   }
 
-  const rows = Array.from(document.querySelectorAll<HTMLTableRowElement>(`${state.selectorPrefix}tr`)).slice(1);
+  const rows = Array.from(queryRedeemRootAll<HTMLTableRowElement>('table tr')).slice(1);
   for (const row of rows) {
     const cells = row.children;
     if (cells[1]?.innerHTML.includes(key) && cells[2]?.innerHTML.includes(texts.redeeming)) {
@@ -142,7 +191,7 @@ export function tableUpdateKey(key: string, result: string, detail: string, subI
       resultCell.style.color = result === texts.fail ? 'red' : 'green';
       row.append(resultCell);
       row.append(createCell('td', detail, 'nobr'));
-      row.append(createCell('td', subId === 0 ? '——' : `<code>${subId}</code> <a href="https://steamdb.info/sub/${subId}/" target="_blank">${subName}</a>`));
+      row.append(createSubCell(subId, subName));
       break;
     }
   }
@@ -194,7 +243,7 @@ function startTimer(): void {
   const timer = window.setInterval(() => {
     let hasWaiting = false;
     let nowKey = 0;
-    const rows = Array.from(document.querySelectorAll<HTMLTableRowElement>(`${state.selectorPrefix}tr`)).slice(1).reverse();
+    const rows = Array.from(queryRedeemRootAll<HTMLTableRowElement>('table tr')).slice(1).reverse();
 
     for (const row of rows) {
       const cell = row.children[2] as HTMLElement | undefined;
@@ -218,7 +267,7 @@ function startTimer(): void {
 export function redeem(keys: string[]): void {
   if (keys.length <= 0) return;
 
-  if (!state.selectorPrefix) {
+  if (!state.popupFlow) {
     document.querySelector<HTMLElement>('#buttonRedeem, #redeemKey')?.style.setProperty('display', 'none');
     document.querySelector<HTMLTextAreaElement>('#inputKey')?.setAttribute('disabled', 'disabled');
   }
@@ -260,19 +309,20 @@ export function registerSteamKeys(raw: string): void {
 export const registerkey = registerSteamKeys;
 
 function copyUnusedKeys(): void {
-  GM_setClipboard(extractSteamKeys(document.querySelector('#unusedKeys')?.textContent || '').join(','));
-  swal({ title: '复制成功！', icon: 'success' });
+  GM_setClipboard(extractSteamKeys(queryRedeemRoot('#unusedKeys')?.textContent || '').join(','));
+  showModal({ title: '复制成功！', icon: 'success' });
 }
 
 export function toggleUnusedKeyArea(): void {
-  if (!state.selectorPrefix) {
-    const unusedKeyArea = document.querySelector<HTMLElement>('#unusedKeyArea');
+  if (!state.popupFlow) {
+    const unusedKeyArea = queryRedeemRoot<HTMLElement>('#unusedKeyArea');
     if (unusedKeyArea) unusedKeyArea.style.display = unusedKeyArea.style.display === 'none' ? '' : 'none';
   }
 }
 
 export function initSteamRedeemPage(): void {
-  state.selectorPrefix = '';
+  state.renderRoot = null;
+  state.popupFlow = false;
   state.keyCount = 0;
   state.recvCount = 0;
   state.allUnusedKeys = [];
@@ -293,6 +343,7 @@ export function initSteamRedeemPage(): void {
           <tbody></tbody>
         </table>
       </div><br>`;
+    setRedeemRenderRoot(examples, false);
   }
 
   const inputBox = document.querySelector<HTMLElement>('.registerkey_input_box_text')?.parentElement;
@@ -347,13 +398,13 @@ function activateCopiedProduct(event: ClipboardEvent): void {
 
   if (/^([\w\W]*)?([\d\w]{5}(-[\d\w]{5}){2}(\r|,|，)?){1,}/.test(productKey)) {
     if (!document.querySelector('div.swal-overlay.swal-overlay--show-modal')) {
-      swal({ title: '检测到神秘key,是否激活？', icon: 'success', buttons: { confirm: '激活', cancel: '取消' } }).then((value) => {
+      showModal({ title: '检测到神秘key,是否激活？', icon: 'success', buttons: { confirm: '激活', cancel: '取消' } }).then((value) => {
         if (value) registerSteamKeys(productKey);
       });
     }
   } else if (/^![\w\d]+\s+asf\s+.+/gi.test(productKey) && setting.asf) {
     if (!document.querySelector('div.swal-overlay.swal-overlay--show-modal')) {
-      swal({ closeOnClickOutside: false, className: 'swal-user', title: '检测到您复制了以下ASF指令，是否执行？', text: productKey, buttons: { confirm: '执行', cancel: '取消' } }).then((value) => {
+      showModal({ closeOnClickOutside: false, className: 'swal-user', title: '检测到您复制了以下ASF指令，是否执行？', text: productKey, buttons: { confirm: '执行', cancel: '取消' } }).then((value) => {
         if (value) asfRedeem(productKey);
       });
     }

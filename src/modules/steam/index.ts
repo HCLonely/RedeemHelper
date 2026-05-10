@@ -1,3 +1,4 @@
+import { showModal } from '../../shared/ui';
 import { openASFDialog } from './asf';
 import { bindCopySelectClickListeners, initSteamRedeemPage, registerSteamKeys } from './redeem';
 import { openSteamSettingsDialog } from './settings';
@@ -78,7 +79,7 @@ export function initSteam(): void {
       redeemAllPageKeys();
     }
   } catch (error) {
-    swal('AuTo Redeem Steamkey脚本执行出错，详情请查看控制台！', (error as Error).stack, 'error');
+    showModal('AuTo Redeem Steamkey脚本执行出错，详情请查看控制台！', (error as Error).stack, 'error');
     console.error(error);
   }
 }

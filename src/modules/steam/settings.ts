@@ -1,5 +1,6 @@
 import { extractSteamKeys } from '../../shared/regex';
 import { defaultSettings, getSettings, setSettings } from '../../shared/storage';
+import { showModal } from '../../shared/ui';
 
 export type SteamSettings = UnifiedSettings['steam'];
 
@@ -40,7 +41,7 @@ function showHistory(): void {
   const history = GM_getValue<ActivationHistory | undefined>('history');
 
   if (Array.isArray(history)) {
-    swal({
+    showModal({
       closeOnClickOutside: false,
       className: 'swal-user',
       title: '上次激活记录：',
@@ -55,7 +56,7 @@ function showHistory(): void {
       }, 0);
     }
   } else {
-    swal({ closeOnClickOutside: false, title: '没有操作记录！', icon: 'error', buttons: { cancel: '关闭' } });
+    showModal({ closeOnClickOutside: false, title: '没有操作记录！', icon: 'error', buttons: { cancel: '关闭' } });
   }
 }
 
@@ -67,7 +68,7 @@ function showSwitchKey(): void {
     </div>
   `);
 
-  swal({
+  showModal({
     closeOnClickOutside: false,
     title: '请选择要转换成什么格式：',
     content,
@@ -78,7 +79,7 @@ function showSwitchKey(): void {
       if (selectedValue) {
         showSwitchArea(selectedValue);
       } else {
-        swal({ closeOnClickOutside: false, title: '请选择要将key转换成什么格式！', icon: 'warning' }).then(() => showSwitchKey());
+        showModal({ closeOnClickOutside: false, title: '请选择要将key转换成什么格式！', icon: 'warning' }).then(() => showSwitchKey());
       }
     }
   });
@@ -91,7 +92,7 @@ function showSwitchArea(type: string): void {
   textarea.style.width = '80%';
   textarea.style.height = '100px';
 
-  swal({
+  showModal({
     closeOnClickOutside: false,
     title: '请输入要转换的key:',
     content: textarea,
@@ -122,7 +123,7 @@ function showKey(key: string, type: string): void {
   textarea.value = key;
   textarea.addEventListener('click', () => textarea.select());
 
-  swal({
+  showModal({
     closeOnClickOutside: false,
     icon: 'success',
     title: '转换成功！',
@@ -164,7 +165,7 @@ export function openSteamSettingsDialog(): void {
     </div>
   `);
 
-  swal({
+  showModal({
     closeOnClickOutside: false,
     className: 'asf-class',
     title: '全局设置',
@@ -185,7 +186,7 @@ export function openSteamSettingsDialog(): void {
         }
       });
       saveSteamSettings(next);
-      swal({ closeOnClickOutside: false, icon: 'success', title: '保存成功！', text: '刷新页面后生效！', buttons: { confirm: '确定' } });
+      showModal({ closeOnClickOutside: false, icon: 'success', title: '保存成功！', text: '刷新页面后生效！', buttons: { confirm: '确定' } });
     } else if (value === 'showHistory') {
       showHistory();
     } else if (value === 'showSwitchKey') {

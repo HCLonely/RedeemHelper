@@ -1,6 +1,7 @@
 import { request } from '../../shared/http';
 import { extractSteamKeys } from '../../shared/regex';
-import { getSteamSessionID, redeemKeys, setSteamSessionID } from './redeem';
+import { showModal } from '../../shared/ui';
+import { clearRedeemRenderRoot, getSteamSessionID, redeemKeys, setRedeemRenderRoot, setSteamSessionID } from './redeem';
 
 type StoreTokenParams = {
   steamID: string;
@@ -31,7 +32,7 @@ const STEAM_HOSTS = {
 } as const;
 
 function showSwalMessage(options: SwalOptions): Promise<unknown> {
-  return swal({ className: 'swal-user', closeOnClickOutside: false, ...options });
+  return showModal({ className: 'swal-user', closeOnClickOutside: false, ...options });
 }
 
 function htmlToElement(html: string): HTMLElement {
@@ -175,17 +176,20 @@ function handleNoSession(keysCsv: string, redeemContent: HTMLElement): void {
 }
 
 function showRedeemDialog(keysCsv: string, redeemContent: HTMLElement): void {
+  setRedeemRenderRoot(redeemContent);
   showSwalMessage({
     title: '正在激活steam key...',
     content: redeemContent,
     buttons: { confirm: '提取未使用key', cancel: '关闭' }
   }).then((value) => {
-    const textareaValue = document.querySelector<HTMLTextAreaElement>('.swal-content textarea')?.value || '';
-    GM_setValue('history', [document.querySelector('.swal-content')?.innerHTML || '', textareaValue]);
+    const modalContent = document.querySelector('.swal-content');
+    const textareaValue = modalContent?.querySelector<HTMLTextAreaElement>('textarea')?.value || '';
+    GM_setValue('history', [modalContent?.innerHTML || '', textareaValue]);
     if (value) {
-      GM_setClipboard(extractSteamKeys(document.querySelector('#unusedKeys')?.textContent || '').join(','));
+      GM_setClipboard(extractSteamKeys(redeemContent.querySelector('#unusedKeys')?.textContent || '').join(','));
       showSwalMessage({ title: '复制成功！', icon: 'success' });
     }
+    clearRedeemRenderRoot(redeemContent);
   });
 
   redeemKeys(keysCsv);
@@ -204,14 +208,36 @@ export function redeemSub(raw?: string): void {
   const freePackages = subText.match(/[\d]{2,}/g) || [];
   let loaded = 0;
   const total = freePackages.length;
-  swal('正在执行…', '请等待所有请求完成。 忽略所有错误，让它完成。');
-
   if (total === 0) return;
+
+  const showCompletion = () => {
+    if (window.location.href.includes('licenses')) {
+      window.open('https://store.steampowered.com/account/licenses/', '_self');
+    } else {
+      showModal({
+        title: '全部激活完成，是否前往账户页面查看结果？',
+        buttons: { cancel: '取消', confirm: '确定' }
+      }).then((value) => {
+        if (value) window.open('https://store.steampowered.com/account/licenses/', '_blank');
+      });
+    }
+  };
+
+  const markLoaded = () => {
+    loaded++;
+    if (loaded >= total) {
+      showCompletion();
+    } else {
+      showModal('正在激活…', `进度：${loaded}/${total}.`);
+    }
+  };
+
+  showModal('正在执行…', '请等待所有请求完成。 忽略所有错误，让它完成。');
 
   freePackages.forEach((packageText) => {
     const packageId = Number.parseInt(packageText, 10);
     if (ownedPackages[packageId]) {
-      loaded++;
+      markLoaded();
       return;
     }
 
@@ -220,23 +246,7 @@ export function redeemSub(raw?: string): void {
       method: 'POST',
       data: new URLSearchParams({ action: 'add_to_cart', sessionid: getSteamSessionID() || safeGlobalSessionID(), subid: String(packageId) }),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }
-    }).then(() => {
-      loaded++;
-      if (loaded >= total) {
-        if (window.location.href.includes('licenses')) {
-          window.open('https://store.steampowered.com/account/licenses/', '_self');
-        } else {
-          swal({
-            title: '全部激活完成，是否前往账户页面查看结果？',
-            buttons: { cancel: '取消', confirm: '确定' }
-          }).then((value) => {
-            if (value) window.open('https://store.steampowered.com/account/licenses/', '_blank');
-          });
-        }
-      } else {
-        swal('正在激活…', `进度：${loaded}/${total}.`);
-      }
-    });
+    }).then(markLoaded);
   });
 }
 
