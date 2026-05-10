@@ -397,13 +397,13 @@ function activateCopiedProduct(event: ClipboardEvent): void {
   void navigator.clipboard?.writeText(productKey).catch(() => undefined);
 
   if (/^([\w\W]*)?([\d\w]{5}(-[\d\w]{5}){2}(\r|,|，)?){1,}/.test(productKey)) {
-    if (!document.querySelector('div.swal-overlay.swal-overlay--show-modal')) {
+    if (!document.querySelector('div.rh-modal-overlay')) {
       showModal({ title: '检测到神秘key,是否激活？', icon: 'success', buttons: { confirm: '激活', cancel: '取消' } }).then((value) => {
         if (value) registerSteamKeys(productKey);
       });
     }
   } else if (/^![\w\d]+\s+asf\s+.+/gi.test(productKey) && setting.asf) {
-    if (!document.querySelector('div.swal-overlay.swal-overlay--show-modal')) {
+    if (!document.querySelector('div.rh-modal-overlay')) {
       showModal({ closeOnClickOutside: false, className: 'swal-user', title: '检测到您复制了以下ASF指令，是否执行？', text: productKey, buttons: { confirm: '执行', cancel: '取消' } }).then((value) => {
         if (value) asfRedeem(productKey);
       });
@@ -449,7 +449,7 @@ function bindSelectListener(): void {
 function bindClickListener(): void {
   document.body?.addEventListener('click', (event) => {
     const htmlEl = event.target as HTMLElement | null;
-    if (!htmlEl || htmlEl.closest('.swal-overlay') || ['A', 'BUTTON', 'TEXTAREA'].includes(htmlEl.tagName) || ['button', 'text'].includes(htmlEl.getAttribute('type') || '')) return;
+    if (!htmlEl || htmlEl.closest('.rh-modal-overlay') || ['A', 'BUTTON', 'TEXTAREA'].includes(htmlEl.tagName) || ['button', 'text'].includes(htmlEl.getAttribute('type') || '')) return;
     if (htmlEl.children.length > 0 && extractSteamKeys(Array.from(htmlEl.children).map((child) => child.textContent ?? '').join('')).length > 0) return;
 
     const keys = extractSteamKeys(htmlEl.textContent ?? '');

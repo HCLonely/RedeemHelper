@@ -17,7 +17,7 @@ const EXTERNAL_HOSTS = [
 ];
 
 const ITCH_CSS = `
-.swal2-title.break-all{word-wrap:break-word;word-break:break-all;}
+.rh-modal.break-all .rh-modal-title{word-wrap:break-word;word-break:break-all;}
 .${ITCH_BUTTON_CLASS}{margin-left:10px !important;}
 .freegames-codes .${ITCH_BUTTON_CLASS}{margin-top:10px !important;margin-left:0 !important;}
 .shaigrorb-itch-button{position:relative;height:min-content;right:39px;background-color:#16a34a;top:4px;text-decoration-line:none;color:white;font-weight:bold;border-radius:2px;padding:5px;font-size:13px;}

@@ -182,7 +182,7 @@ function showRedeemDialog(keysCsv: string, redeemContent: HTMLElement): void {
     content: redeemContent,
     buttons: { confirm: '提取未使用key', cancel: '关闭' }
   }).then((value) => {
-    const modalContent = document.querySelector('.swal-content');
+    const modalContent = document.querySelector('.rh-modal-content');
     const textareaValue = modalContent?.querySelector<HTMLTextAreaElement>('textarea')?.value || '';
     GM_setValue('history', [modalContent?.innerHTML || '', textareaValue]);
     if (value) {

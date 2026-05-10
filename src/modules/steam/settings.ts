@@ -51,7 +51,7 @@ function showHistory(): void {
 
     if (history[1]) {
       setTimeout(() => {
-        const textarea = document.querySelector<HTMLTextAreaElement>('.swal-content textarea');
+        const textarea = document.querySelector<HTMLTextAreaElement>('.rh-modal-content textarea');
         if (textarea) textarea.value = history[1] ?? '';
       }, 0);
     }
@@ -154,7 +154,7 @@ export function openSteamSettingsDialog(): void {
       <span title="点击key时添加激活链接">开启点击捕捉</span><br/>
       <input type="checkbox" name="allKeyListen" ${setting.allKeyListen ? 'checked' : ''} title="匹配页面内所有符合steam key格式的内容"/>
       <span title="匹配页面内所有符合steam key格式的内容">捕捉页面内所有key</span>
-      <div class="swal-title">ASF IPC设置</div>
+      <div class="rh-modal-title">ASF IPC设置</div>
       <span>ASF IPC协议</span><input type="text" name="asfProtocol" value="${setting.asfProtocol}" placeholder="http或https,默认为http"/><br/>
       <span>ASF IPC地址</span><input type="text" name="asfHost" value="${setting.asfHost}" placeholder="ip地址或域名,默认为127.0.0.1"/><br/>
       <span>ASF IPC端口</span><input type="text" name="asfPort" value="${setting.asfPort}" placeholder="默认1242"/><br/>

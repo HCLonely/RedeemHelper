@@ -19,8 +19,6 @@
 // @grant        GM_cookie
 // @run-at       document-idle
 // @require      https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js
-// @require      https://cdn.jsdelivr.net/npm/sweetalert@2.1.2/dist/sweetalert.min.js
-// @require      https://cdn.jsdelivr.net/npm/sweetalert2@9
 // @connect      *
 // @compatible   chrome
 // ==/UserScript==
@@ -46,24 +44,193 @@
   }
 
   // src/shared/ui.ts
-  function showModal(optionsOrTitle, text, icon) {
-    if (typeof swal === "function") {
-      return typeof optionsOrTitle === "string" ? swal(optionsOrTitle, text, icon) : swal(optionsOrTitle);
+  var activeModal = null;
+  var stylesInjected = false;
+  function normalizeOptions(optionsOrTitle, text, icon) {
+    if (typeof optionsOrTitle === "string") {
+      return {
+        title: optionsOrTitle,
+        text,
+        icon
+      };
     }
-    if (typeof Swal !== "undefined" && Swal?.fire) {
-      return typeof optionsOrTitle === "string" ? Swal.fire(optionsOrTitle, text, icon) : Swal.fire(optionsOrTitle);
-    }
-    return Promise.resolve(void 0);
+    return optionsOrTitle;
   }
-  function isModalVisible() {
-    if (typeof Swal === "undefined") return false;
-    if (typeof Swal.isVisible === "function") return Swal.isVisible();
-    const popup = typeof Swal.getPopup === "function" ? Swal.getPopup() : null;
-    return !!popup && popup.offsetParent !== null;
+  function injectStyles() {
+    if (stylesInjected) return;
+    const style = document.createElement("style");
+    style.textContent = `
+    .rh-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2147483647;
+    }
+
+    .rh-modal {
+      width: min(90vw, 420px);
+      max-height: 85vh;
+      overflow: auto;
+      border-radius: 10px;
+      background: #fff;
+      color: #222;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
+      padding: 16px;
+      box-sizing: border-box;
+      font-family: inherit;
+    }
+
+    .rh-modal-icon {
+      margin: 0 0 8px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .rh-modal-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0 0 8px;
+    }
+
+    .rh-modal-text,
+    .rh-modal-content {
+      margin: 0 0 12px;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+    .rh-modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .rh-modal-button {
+      border: none;
+      border-radius: 6px;
+      padding: 8px 14px;
+      background: #2f80ed;
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+    }
+  `;
+    const mountTarget = document.head ?? document.documentElement;
+    mountTarget.appendChild(style);
+    stylesInjected = true;
+  }
+  function closeActiveModal(value) {
+    if (!activeModal) return;
+    const current = activeModal;
+    activeModal = null;
+    document.removeEventListener("keydown", current.escHandler);
+    current.overlay.remove();
+    current.resolve(value);
+  }
+  function renderModal(options) {
+    if (!activeModal) return;
+    const { iconEl, titleEl, textEl, contentEl, actionsEl } = activeModal;
+    const opts = options;
+    const title = opts.titleText ?? opts.title ?? "";
+    titleEl.textContent = title;
+    titleEl.style.display = title ? "" : "none";
+    iconEl.className = `rh-modal-icon${opts.icon ? ` rh-modal-icon--${opts.icon}` : ""}`;
+    iconEl.textContent = opts.icon ?? "";
+    iconEl.style.display = opts.icon ? "" : "none";
+    textEl.textContent = opts.text ?? "";
+    textEl.style.display = textEl.textContent ? "" : "none";
+    contentEl.innerHTML = "";
+    if (typeof opts.content === "string") {
+      contentEl.textContent = opts.content;
+    } else if (opts.content instanceof HTMLElement) {
+      contentEl.appendChild(opts.content);
+    }
+    contentEl.style.display = contentEl.textContent || contentEl.childNodes.length ? "" : "none";
+    activeModal.modal.className = "rh-modal";
+    if (opts.className) {
+      activeModal.modal.classList.add(...opts.className.split(/\s+/).filter(Boolean));
+    }
+    activeModal.closeOnClickOutside = opts.closeOnClickOutside !== false;
+    actionsEl.innerHTML = "";
+    const buttons = opts.buttons && Object.keys(opts.buttons).length ? opts.buttons : opts.showCancelButton ? {
+      confirm: opts.confirmButtonText || "确定",
+      cancel: opts.cancelButtonText || "取消"
+    } : { confirm: "确定" };
+    Object.entries(buttons).forEach(([key, config]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "rh-modal-button";
+      button.textContent = typeof config === "string" ? config : config?.text || key;
+      button.addEventListener("click", () => {
+        if (key === "cancel") {
+          closeActiveModal(null);
+          return;
+        }
+        if (key === "confirm") {
+          closeActiveModal(true);
+          return;
+        }
+        closeActiveModal(key);
+      });
+      actionsEl.appendChild(button);
+    });
+  }
+  function showModal(optionsOrTitle, text, icon) {
+    injectStyles();
+    const options = normalizeOptions(optionsOrTitle, text, icon);
+    if (activeModal) {
+      closeActiveModal(null);
+    }
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.className = "rh-modal-overlay";
+      const modal = document.createElement("div");
+      modal.className = "rh-modal";
+      const iconEl = document.createElement("div");
+      iconEl.className = "rh-modal-icon";
+      const titleEl = document.createElement("div");
+      titleEl.className = "rh-modal-title";
+      const textEl = document.createElement("div");
+      textEl.className = "rh-modal-text";
+      const contentEl = document.createElement("div");
+      contentEl.className = "rh-modal-content";
+      const actionsEl = document.createElement("div");
+      actionsEl.className = "rh-modal-actions";
+      modal.append(iconEl, titleEl, textEl, contentEl, actionsEl);
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+      const escHandler = (event) => {
+        if (event.key === "Escape" && activeModal?.closeOnClickOutside) {
+          closeActiveModal(null);
+        }
+      };
+      overlay.addEventListener("click", (event) => {
+        if (event.target === overlay && activeModal?.closeOnClickOutside) {
+          closeActiveModal(null);
+        }
+      });
+      document.addEventListener("keydown", escHandler);
+      activeModal = {
+        overlay,
+        modal,
+        iconEl,
+        titleEl,
+        textEl,
+        contentEl,
+        actionsEl,
+        resolve,
+        closeOnClickOutside: true,
+        escHandler
+      };
+      renderModal(options);
+    });
   }
   function updateOrShowModal(options) {
-    if (typeof Swal !== "undefined" && typeof Swal.update === "function" && isModalVisible()) {
-      Swal.update(options);
+    if (activeModal) {
+      renderModal(options);
       return;
     }
     void showModal(options);
@@ -102,13 +269,7 @@
 
   // src/modules/ig/addToLib.ts
   function updateModal(options) {
-    const maybeSwal = typeof Swal !== "undefined" ? Swal : void 0;
-    const updater = maybeSwal?.update;
-    if (typeof updater === "function") {
-      updater(options);
-      return;
-    }
-    void showModal(options);
+    updateOrShowModal(options);
   }
   function parseAddToLibraryRequest(pageHtml, href) {
     const pageId = pageHtml.match(/dataToSend\.(gala_page_)?id[\s]*?=[\s]*?'(.*?)';/)?.[2];
@@ -147,7 +308,7 @@
       confirmButtonText: "登录",
       cancelButtonText: "关闭"
     });
-    if (result?.value || result?.isConfirmed) {
+    if (result) {
       window.open("https://www.indiegala.com/login", "_blank");
     }
   }
@@ -692,7 +853,7 @@ ${details}` : message);
     "shaigrorb.github.io"
   ];
   var ITCH_CSS = `
-.swal2-title.break-all{word-wrap:break-word;word-break:break-all;}
+.rh-modal.break-all .rh-modal-title{word-wrap:break-word;word-break:break-all;}
 .${ITCH_BUTTON_CLASS}{margin-left:10px !important;}
 .freegames-codes .${ITCH_BUTTON_CLASS}{margin-top:10px !important;margin-left:0 !important;}
 .shaigrorb-itch-button{position:relative;height:min-content;right:39px;background-color:#16a34a;top:4px;text-decoration-line:none;color:white;font-weight:bold;border-radius:2px;padding:5px;font-size:13px;}
@@ -845,7 +1006,7 @@ ${details}` : message);
       });
       if (history[1]) {
         setTimeout(() => {
-          const textarea = document.querySelector(".swal-content textarea");
+          const textarea = document.querySelector(".rh-modal-content textarea");
           if (textarea) textarea.value = history[1] ?? "";
         }, 0);
       }
@@ -938,7 +1099,7 @@ ${details}` : message);
       <span title="点击key时添加激活链接">开启点击捕捉</span><br/>
       <input type="checkbox" name="allKeyListen" ${setting.allKeyListen ? "checked" : ""} title="匹配页面内所有符合steam key格式的内容"/>
       <span title="匹配页面内所有符合steam key格式的内容">捕捉页面内所有key</span>
-      <div class="swal-title">ASF IPC设置</div>
+      <div class="rh-modal-title">ASF IPC设置</div>
       <span>ASF IPC协议</span><input type="text" name="asfProtocol" value="${setting.asfProtocol}" placeholder="http或https,默认为http"/><br/>
       <span>ASF IPC地址</span><input type="text" name="asfHost" value="${setting.asfHost}" placeholder="ip地址或域名,默认为127.0.0.1"/><br/>
       <span>ASF IPC端口</span><input type="text" name="asfPort" value="${setting.asfPort}" placeholder="默认1242"/><br/>
@@ -1162,7 +1323,7 @@ ${details}` : message);
       buttons: isRedeemCommand ? { confirm: "提取未使用key", cancel: "关闭" } : { confirm: "确定" }
     }).then((value) => {
       if (!isRedeemCommand) return;
-      GM_setValue("history", [document.querySelector(".swal-content")?.innerHTML ?? "", textarea.value]);
+      GM_setValue("history", [document.querySelector(".rh-modal-content")?.innerHTML ?? "", textarea.value]);
       if (value) {
         const unusedKeys = textarea.value.split(/[(\r\n)\r\n]+/).filter((line) => /未使用/gim.test(line)).join(",");
         if (unusedKeys) {
@@ -1342,7 +1503,7 @@ ${details}` : message);
       content: redeemContent,
       buttons: { confirm: "提取未使用key", cancel: "关闭" }
     }).then((value) => {
-      const modalContent = document.querySelector(".swal-content");
+      const modalContent = document.querySelector(".rh-modal-content");
       const textareaValue = modalContent?.querySelector("textarea")?.value || "";
       GM_setValue("history", [modalContent?.innerHTML || "", textareaValue]);
       if (value) {
@@ -1815,13 +1976,13 @@ ${details}` : message);
     const productKey = window.getSelection()?.toString()?.trim() || event.target?.value || "";
     void navigator.clipboard?.writeText(productKey).catch(() => void 0);
     if (/^([\w\W]*)?([\d\w]{5}(-[\d\w]{5}){2}(\r|,|，)?){1,}/.test(productKey)) {
-      if (!document.querySelector("div.swal-overlay.swal-overlay--show-modal")) {
+      if (!document.querySelector("div.rh-modal-overlay")) {
         showModal({ title: "检测到神秘key,是否激活？", icon: "success", buttons: { confirm: "激活", cancel: "取消" } }).then((value) => {
           if (value) registerSteamKeys(productKey);
         });
       }
     } else if (/^![\w\d]+\s+asf\s+.+/gi.test(productKey) && setting.asf) {
-      if (!document.querySelector("div.swal-overlay.swal-overlay--show-modal")) {
+      if (!document.querySelector("div.rh-modal-overlay")) {
         showModal({ closeOnClickOutside: false, className: "swal-user", title: "检测到您复制了以下ASF指令，是否执行？", text: productKey, buttons: { confirm: "执行", cancel: "取消" } }).then((value) => {
           if (value) asfRedeem(productKey);
         });
@@ -1861,7 +2022,7 @@ ${details}` : message);
   function bindClickListener() {
     document.body?.addEventListener("click", (event) => {
       const htmlEl = event.target;
-      if (!htmlEl || htmlEl.closest(".swal-overlay") || ["A", "BUTTON", "TEXTAREA"].includes(htmlEl.tagName) || ["button", "text"].includes(htmlEl.getAttribute("type") || "")) return;
+      if (!htmlEl || htmlEl.closest(".rh-modal-overlay") || ["A", "BUTTON", "TEXTAREA"].includes(htmlEl.tagName) || ["button", "text"].includes(htmlEl.getAttribute("type") || "")) return;
       if (htmlEl.children.length > 0 && extractSteamKeys(Array.from(htmlEl.children).map((child) => child.textContent ?? "").join("")).length > 0) return;
       const keys = extractSteamKeys(htmlEl.textContent ?? "");
       if (keys.length === 0) return;
@@ -1896,9 +2057,9 @@ table.hclonely tr { background-color: #d4e3e5; }
 table.hclonely td { border-width: 1px; padding: 8px; border-style: solid; border-color: #a9c6c9; }
 table.hclonely caption { padding-top: 8px; color: #808294; text-align: center; caption-side: top; background-color: #94d7df; }
 table.hclonely h2 { margin: 0; font-size: 25px; }
-.swal-user { width: 80%; }
+.rh-modal.swal-user { width: 80%; }
 table.hclonely a { color: #2196F3; }
-table.hclonely .swal-button { padding: 5px; }
+table.hclonely .rh-modal-button { padding: 5px; }
 #unusedKeyArea code { padding: 2px 4px; font-size: 90%; color: #c7254e; background-color: #f9f2f4; border-radius: 3px; }
 .notice_box_content { border: 1px solid #a25024; border-radius: 3px; color: #acb2b8; font-size: 14px; font-family: "Motiva Sans", Sans-serif; font-weight: normal; padding: 15px 15px; margin-bottom: 15px; }
 .notice_box_content b { font-weight: normal; color: #f47b20; float: left; }
@@ -1920,8 +2081,8 @@ table.hclonely .swal-button { padding: 5px; }
 .switch-key div { width: 50%; position: relative; cursor:default; }
 .switch-key input { margin:10px 0; }
 .switch-key p { font-size:25px; height:25px; color:black; margin:0; }
-.swal-content * { color:#000; }
-.swal-content textarea { background: #fff; }
+.rh-modal-content * { color:#000; }
+.rh-modal-content textarea { background: #fff; }
 #allKey { display: inline-block; padding: 6px 12px; margin-bottom: 0; font-size: 14px; font-weight: 400; line-height: 1.42857143; text-align: center; white-space: nowrap; vertical-align: middle; cursor: pointer; user-select: none; background-image: none; border: 1px solid #ccc; border-radius: 4px; color: #333; background-color: #fff; }
 #allKey:hover, #allKey:focus { color: #333; background-color: #e6e6e6; border-color: #adadad; text-decoration: none; }
 .icon-img { position: absolute; width: 32px; height: 32px; margin: 0!important; }

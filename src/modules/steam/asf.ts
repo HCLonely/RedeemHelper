@@ -204,7 +204,7 @@ export function asfRedeem(command: string): void {
     buttons: isRedeemCommand ? { confirm: '提取未使用key', cancel: '关闭' } : { confirm: '确定' }
   }).then((value) => {
     if (!isRedeemCommand) return;
-    GM_setValue('history', [document.querySelector('.swal-content')?.innerHTML ?? '', textarea.value]);
+    GM_setValue('history', [document.querySelector('.rh-modal-content')?.innerHTML ?? '', textarea.value]);
     if (value) {
       const unusedKeys = textarea.value
         .split(/[(\r\n)\r\n]+/)

@@ -64,18 +64,6 @@ declare global {
     closeOnClickOutside?: boolean;
   }
 
-  interface SweetAlert2Like {
-    fire(options: SwalOptions): Promise<unknown>;
-    fire(title: string, text?: string, icon?: SwalIcon): Promise<unknown>;
-    update?: (options: SwalOptions) => void;
-    isVisible?: () => boolean;
-    getPopup?: () => HTMLElement | null;
-  }
-
-  function swal(options: SwalOptions): Promise<unknown>;
-  function swal(title: string, text?: string, icon?: SwalIcon): Promise<unknown>;
-
-  const Swal: SweetAlert2Like | undefined;
   const g_sessionID: string | undefined;
 
   interface GMResponse<T = unknown> {

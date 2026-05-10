@@ -1,20 +1,12 @@
 import { request } from '../../shared/http';
-import { showModal } from '../../shared/ui';
+import { showModal, updateOrShowModal } from '../../shared/ui';
 
 interface IndieGalaAddResponse {
   status?: 'ok' | 'added' | 'login' | 'auth' | string;
 }
 
 function updateModal(options: SwalOptions): void {
-  const maybeSwal = typeof Swal !== 'undefined' ? Swal : undefined;
-  const updater = (maybeSwal as unknown as { update?: (options: SwalOptions) => void } | undefined)?.update;
-
-  if (typeof updater === 'function') {
-    updater(options);
-    return;
-  }
-
-  void showModal(options);
+  updateOrShowModal(options);
 }
 
 function parseAddToLibraryRequest(pageHtml: string, href: string): { url: string; csrfToken: string } | null {
@@ -61,7 +53,7 @@ async function promptLogin(): Promise<void> {
     cancelButtonText: '关闭'
   } as SwalOptions);
 
-  if ((result as { value?: boolean; isConfirmed?: boolean } | undefined)?.value || (result as { isConfirmed?: boolean } | undefined)?.isConfirmed) {
+  if (result) {
     window.open('https://www.indiegala.com/login', '_blank');
   }
 }
