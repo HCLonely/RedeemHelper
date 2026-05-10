@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "node esbuild.config.cjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "npm run typecheck && npm run build"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",
