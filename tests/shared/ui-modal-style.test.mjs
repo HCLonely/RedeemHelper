@@ -33,6 +33,19 @@ test('maps button keys to role classes', () => {
   assert.equal(mod.getButtonRoleClass('custom', 'info'), 'rh-modal-button--secondary');
 });
 
+test('keeps danger role policy regression coverage', () => {
+  assert.equal(mod.getButtonRoleClass('confirm', 'error'), 'rh-modal-button--danger');
+  assert.equal(mod.getButtonRoleClass('confirm', 'warning'), 'rh-modal-button--primary');
+  assert.equal(mod.getButtonRoleClass('cancel', 'error'), 'rh-modal-button--secondary');
+});
+
+test('renderModal wires semantic tone and button role classes', () => {
+  assert.match(source, /const toneClass = getModalToneClass\(opts\.icon\);/);
+  assert.match(source, /const tone = getModalTone\(opts\.icon\);/);
+  assert.match(source, /activeModal\.modal\.className = `rh-modal\$\{opts\.className \? ` \$\{opts\.className\}` : ''\}\$\{toneClass \? ` \$\{toneClass\}` : ''\}`;/);
+  assert.match(source, /button\.className = `rh-modal-button \$\{getButtonRoleClass\(key, tone\)\}`;/);
+});
+
 test('keeps style contract for modern compact-balanced design', () => {
   assert.match(mod.MODAL_STYLES, /width:\s*min\(92vw,\s*460px\)/);
   assert.match(mod.MODAL_STYLES, /padding:\s*20px/);

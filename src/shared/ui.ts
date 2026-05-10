@@ -205,10 +205,9 @@ function renderModal(options: SwalOptions): void {
   }
   contentEl.style.display = contentEl.textContent || contentEl.childNodes.length ? '' : 'none';
 
-  activeModal.modal.className = 'rh-modal';
-  if (opts.className) {
-    activeModal.modal.classList.add(...opts.className.split(/\s+/).filter(Boolean));
-  }
+  const toneClass = getModalToneClass(opts.icon);
+  const tone = getModalTone(opts.icon);
+  activeModal.modal.className = `rh-modal${opts.className ? ` ${opts.className}` : ''}${toneClass ? ` ${toneClass}` : ''}`;
 
   activeModal.closeOnClickOutside = opts.closeOnClickOutside !== false;
 
@@ -225,7 +224,7 @@ function renderModal(options: SwalOptions): void {
   Object.entries(buttons).forEach(([key, config]) => {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'rh-modal-button';
+    button.className = `rh-modal-button ${getButtonRoleClass(key, tone)}`;
     button.textContent = typeof config === 'string' ? config : config?.text || key;
     button.addEventListener('click', () => {
       if (key === 'cancel') {
