@@ -153,24 +153,23 @@ export function webRedeem(keysCsv: string): void {
 }
 
 function handleNoSession(keysCsv: string, redeemContent: HTMLElement): void {
-  GM_xmlhttpRequest({
+  void request<string>({
     method: 'GET',
-    url: 'https://store.steampowered.com/account/registerkey',
-    onload: async (data) => {
-      if (data.finalUrl.includes('login') && !(await updateStoreAuth())) {
-        showSwalMessage({
-          title: '请先登录steam！',
-          icon: 'warning',
-          buttons: { confirm: '登录', cancel: '关闭' }
-        }).then((value) => {
-          if (value) window.open('https://store.steampowered.com/login/', '_blank');
-        });
-      } else if (data.status === 200) {
-        setSteamSessionID(data.responseText?.match(/g_sessionID = "(.+?)";/)?.[1] || '');
-        showRedeemDialog(keysCsv, redeemContent);
-      } else {
-        showSwalMessage({ title: '获取sessionID失败！', icon: 'error', buttons: { confirm: '关闭' } });
-      }
+    url: 'https://store.steampowered.com/account/registerkey'
+  }).then(async (response) => {
+    if ((response.response?.finalUrl ?? '').includes('login') && !(await updateStoreAuth())) {
+      showSwalMessage({
+        title: '请先登录steam！',
+        icon: 'warning',
+        buttons: { confirm: '登录', cancel: '关闭' }
+      }).then((value) => {
+        if (value) window.open('https://store.steampowered.com/login/', '_blank');
+      });
+    } else if (response.status === 200) {
+      setSteamSessionID(response.text?.match(/g_sessionID = "(.+?)";/)?.[1] || '');
+      showRedeemDialog(keysCsv, redeemContent);
+    } else {
+      showSwalMessage({ title: '获取sessionID失败！', icon: 'error', buttons: { confirm: '关闭' } });
     }
   });
 }

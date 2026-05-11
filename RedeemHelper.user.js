@@ -2657,16 +2657,16 @@ table.hclonely .rh-modal-button { padding: 5px; }
       handler();
     };
     if (handlers.onOpenSettings) {
-      GM_registerMenuCommand("⚙设置", wrapMenuHandler(handlers.onOpenSettings));
+      GM_registerMenuCommand("⚙Steam设置", wrapMenuHandler(handlers.onOpenSettings));
     }
     if (handlers.onSteamASF) {
       GM_registerMenuCommand("执行ASF指令", wrapMenuHandler(handlers.onSteamASF));
     }
     if (handlers.onIGBatch) {
-      GM_registerMenuCommand("入库所有", wrapMenuHandler(handlers.onIGBatch));
+      GM_registerMenuCommand("入库所有IndieGala链接", wrapMenuHandler(handlers.onIGBatch));
     }
     if (handlers.onItchExtract) {
-      GM_registerMenuCommand("提取所有链接", wrapMenuHandler(handlers.onItchExtract));
+      GM_registerMenuCommand("入库所有ItchIo链接", wrapMenuHandler(handlers.onItchExtract));
     }
   }
 

@@ -1,3 +1,4 @@
+import { request } from '../../shared/http';
 import { extractSteamKeys } from '../../shared/regex';
 import { showModal } from '../../shared/ui';
 import { asfRedeem } from './asf';
@@ -198,7 +199,7 @@ export function tableUpdateKey(key: string, result: string, detail: string, subI
 }
 
 export function redeemKey(key: string): void {
-  GM_xmlhttpRequest<RedeemResponse>({
+  void request<RedeemResponse>({
     url: 'https://store.steampowered.com/account/ajaxregisterkey/',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -211,31 +212,27 @@ export function redeemKey(key: string): void {
     onloadstart: () => {
       const currentTable = table();
       if (currentTable && currentTable.style.display === 'none') currentTable.style.display = '';
-    },
-    onload: (response) => {
-      if (response.status === 200 && response.response) {
-        const data = response.response;
-        if (data.success === 1 && data.purchase_receipt_info?.line_items[0]) {
-          const item = data.purchase_receipt_info.line_items[0];
-          tableUpdateKey(key, texts.success, texts.line, item.packageid, item.line_item_description);
-          return;
-        }
-
-        if (data.purchase_result_details !== undefined && data.purchase_receipt_info) {
-          const item = data.purchase_receipt_info.line_items[0];
-          const failureReason = FAILURE_DETAILS[data.purchase_result_details] || texts.others;
-          tableUpdateKey(key, texts.fail, failureReason, item?.packageid ?? 0, item?.line_item_description ?? texts.nothing);
-          return;
-        }
-
-        tableUpdateKey(key, texts.fail, texts.nothing, 0, texts.nothing);
-      } else {
-        tableUpdateKey(key, texts.fail, texts.network, 0, texts.nothing);
+    }
+  }).then((response) => {
+    if (response.status === 200 && response.data) {
+      const data = response.data;
+      if (data.success === 1 && data.purchase_receipt_info?.line_items[0]) {
+        const item = data.purchase_receipt_info.line_items[0];
+        tableUpdateKey(key, texts.success, texts.line, item.packageid, item.line_item_description);
+        return;
       }
-    },
-    ontimeout: () => tableUpdateKey(key, texts.fail, texts.network, 0, texts.nothing),
-    onerror: () => tableUpdateKey(key, texts.fail, texts.network, 0, texts.nothing),
-    onabort: () => tableUpdateKey(key, texts.fail, texts.network, 0, texts.nothing)
+
+      if (data.purchase_result_details !== undefined && data.purchase_receipt_info) {
+        const item = data.purchase_receipt_info.line_items[0];
+        const failureReason = FAILURE_DETAILS[data.purchase_result_details] || texts.others;
+        tableUpdateKey(key, texts.fail, failureReason, item?.packageid ?? 0, item?.line_item_description ?? texts.nothing);
+        return;
+      }
+
+      tableUpdateKey(key, texts.fail, texts.nothing, 0, texts.nothing);
+    } else {
+      tableUpdateKey(key, texts.fail, texts.network, 0, texts.nothing);
+    }
   });
 }
 
