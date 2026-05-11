@@ -1140,7 +1140,7 @@ ${details}` : message);
       buttons: { confirm: "确定", cancel: "关闭" }
     }).then((value) => {
       if (value) {
-        const selectedValue = document.querySelector('input[name="keyType"]:checked')?.value;
+        const selectedValue = content.querySelector('input[name="keyType"]:checked')?.value;
         if (selectedValue) {
           showSwitchArea(selectedValue);
         } else {
@@ -1935,24 +1935,23 @@ ${details}` : message);
     showRedeemDialog(keysCsv, redeemContent);
   }
   function handleNoSession(keysCsv, redeemContent) {
-    GM_xmlhttpRequest({
+    void request({
       method: "GET",
-      url: "https://store.steampowered.com/account/registerkey",
-      onload: async (data) => {
-        if (data.finalUrl.includes("login") && !await updateStoreAuth()) {
-          showSwalMessage({
-            title: "请先登录steam！",
-            icon: "warning",
-            buttons: { confirm: "登录", cancel: "关闭" }
-          }).then((value) => {
-            if (value) window.open("https://store.steampowered.com/login/", "_blank");
-          });
-        } else if (data.status === 200) {
-          setSteamSessionID(data.responseText?.match(/g_sessionID = "(.+?)";/)?.[1] || "");
-          showRedeemDialog(keysCsv, redeemContent);
-        } else {
-          showSwalMessage({ title: "获取sessionID失败！", icon: "error", buttons: { confirm: "关闭" } });
-        }
+      url: "https://store.steampowered.com/account/registerkey"
+    }).then(async (response) => {
+      if ((response.response?.finalUrl ?? "").includes("login") && !await updateStoreAuth()) {
+        showSwalMessage({
+          title: "请先登录steam！",
+          icon: "warning",
+          buttons: { confirm: "登录", cancel: "关闭" }
+        }).then((value) => {
+          if (value) window.open("https://store.steampowered.com/login/", "_blank");
+        });
+      } else if (response.status === 200) {
+        setSteamSessionID(response.text?.match(/g_sessionID = "(.+?)";/)?.[1] || "");
+        showRedeemDialog(keysCsv, redeemContent);
+      } else {
+        showSwalMessage({ title: "获取sessionID失败！", icon: "error", buttons: { confirm: "关闭" } });
       }
     });
   }
@@ -2267,7 +2266,7 @@ ${details}` : message);
     }
   }
   function redeemKey(key) {
-    GM_xmlhttpRequest({
+    void request({
       url: "https://store.steampowered.com/account/ajaxregisterkey/",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
@@ -2280,29 +2279,25 @@ ${details}` : message);
       onloadstart: () => {
         const currentTable = table();
         if (currentTable && currentTable.style.display === "none") currentTable.style.display = "";
-      },
-      onload: (response) => {
-        if (response.status === 200 && response.response) {
-          const data = response.response;
-          if (data.success === 1 && data.purchase_receipt_info?.line_items[0]) {
-            const item = data.purchase_receipt_info.line_items[0];
-            tableUpdateKey(key, texts.success, texts.line, item.packageid, item.line_item_description);
-            return;
-          }
-          if (data.purchase_result_details !== void 0 && data.purchase_receipt_info) {
-            const item = data.purchase_receipt_info.line_items[0];
-            const failureReason = FAILURE_DETAILS[data.purchase_result_details] || texts.others;
-            tableUpdateKey(key, texts.fail, failureReason, item?.packageid ?? 0, item?.line_item_description ?? texts.nothing);
-            return;
-          }
-          tableUpdateKey(key, texts.fail, texts.nothing, 0, texts.nothing);
-        } else {
-          tableUpdateKey(key, texts.fail, texts.network, 0, texts.nothing);
+      }
+    }).then((response) => {
+      if (response.status === 200 && response.data) {
+        const data = response.data;
+        if (data.success === 1 && data.purchase_receipt_info?.line_items[0]) {
+          const item = data.purchase_receipt_info.line_items[0];
+          tableUpdateKey(key, texts.success, texts.line, item.packageid, item.line_item_description);
+          return;
         }
-      },
-      ontimeout: () => tableUpdateKey(key, texts.fail, texts.network, 0, texts.nothing),
-      onerror: () => tableUpdateKey(key, texts.fail, texts.network, 0, texts.nothing),
-      onabort: () => tableUpdateKey(key, texts.fail, texts.network, 0, texts.nothing)
+        if (data.purchase_result_details !== void 0 && data.purchase_receipt_info) {
+          const item = data.purchase_receipt_info.line_items[0];
+          const failureReason = FAILURE_DETAILS[data.purchase_result_details] || texts.others;
+          tableUpdateKey(key, texts.fail, failureReason, item?.packageid ?? 0, item?.line_item_description ?? texts.nothing);
+          return;
+        }
+        tableUpdateKey(key, texts.fail, texts.nothing, 0, texts.nothing);
+      } else {
+        tableUpdateKey(key, texts.fail, texts.network, 0, texts.nothing);
+      }
     });
   }
   function startTimer() {

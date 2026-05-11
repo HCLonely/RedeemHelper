@@ -75,7 +75,7 @@ function showSwitchKey(): void {
     buttons: { confirm: '确定', cancel: '关闭' }
   }).then((value) => {
     if (value) {
-      const selectedValue = document.querySelector<HTMLInputElement>('input[name="keyType"]:checked')?.value;
+      const selectedValue = content.querySelector<HTMLInputElement>('input[name="keyType"]:checked')?.value;
       if (selectedValue) {
         showSwitchArea(selectedValue);
       } else {
