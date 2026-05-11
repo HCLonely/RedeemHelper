@@ -67,7 +67,7 @@ export function asfSend(command = ''): void {
   input.placeholder = '输入ASF指令';
   input.value = command ? `!${command.replace(/^!/, '')}` : '';
 
-  showModal({
+  const modalPromise = showModal({
     closeOnClickOutside: false,
     className: 'swal-user',
     text: '请在下方输入要执行的ASF指令：',
@@ -83,7 +83,10 @@ export function asfSend(command = ''): void {
       confirm: '确定',
       cancel: '取消'
     }
-  }).then((value) => {
+  });
+  requestAnimationFrame(() => input.focus());
+
+  modalPromise.then((value) => {
     switch (value) {
       case 'redeem':
         swalRedeem();

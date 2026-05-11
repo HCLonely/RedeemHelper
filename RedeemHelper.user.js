@@ -1303,7 +1303,7 @@ ${details}` : message);
     const input = document.createElement("input");
     input.placeholder = "输入ASF指令";
     input.value = command ? `!${command.replace(/^!/, "")}` : "";
-    showModal({
+    const modalPromise = showModal({
       closeOnClickOutside: false,
       className: "swal-user",
       text: "请在下方输入要执行的ASF指令：",
@@ -1319,7 +1319,9 @@ ${details}` : message);
         confirm: "确定",
         cancel: "取消"
       }
-    }).then((value) => {
+    });
+    requestAnimationFrame(() => input.focus());
+    modalPromise.then((value) => {
       switch (value) {
         case "redeem":
           swalRedeem();
@@ -2302,17 +2304,23 @@ table.hclonely .rh-modal-button { padding: 5px; }
 
   // src/shared/menu.ts
   function registerMenus(handlers) {
+    const wrapMenuHandler = (handler) => () => {
+      if (window.self !== window.top) {
+        return;
+      }
+      handler();
+    };
     if (handlers.onOpenSettings) {
-      GM_registerMenuCommand("⚙设置", handlers.onOpenSettings);
+      GM_registerMenuCommand("⚙设置", wrapMenuHandler(handlers.onOpenSettings));
     }
     if (handlers.onSteamASF) {
-      GM_registerMenuCommand("执行ASF指令", handlers.onSteamASF);
+      GM_registerMenuCommand("执行ASF指令", wrapMenuHandler(handlers.onSteamASF));
     }
     if (handlers.onIGBatch) {
-      GM_registerMenuCommand("入库所有", handlers.onIGBatch);
+      GM_registerMenuCommand("入库所有", wrapMenuHandler(handlers.onIGBatch));
     }
     if (handlers.onItchExtract) {
-      GM_registerMenuCommand("提取所有链接", handlers.onItchExtract);
+      GM_registerMenuCommand("提取所有链接", wrapMenuHandler(handlers.onItchExtract));
     }
   }
 
