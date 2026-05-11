@@ -2,27 +2,13 @@ import { request } from '../../shared/http';
 import { extractSteamKeys } from '../../shared/regex';
 import { showModal } from '../../shared/ui';
 import { getSteamSettings } from './settings';
+import { ASF_COMMANDS_HTML } from './asfCommands.generated';
 
 type ASFResponse = {
   Success?: boolean;
   Message?: string;
   Result?: string;
 };
-
-const ASF_COMMANDS_HTML = `
-<table class="hclonely">
-  <thead><tr><th>命令</th><th>权限</th><th>描述</th></tr></thead>
-  <tbody>
-    <tr><td><code>redeem [Bots] &lt;Keys&gt;</code></td><td><code>Operator</code></td><td>为指定机器人激活给定的游戏序列号或钱包充值码。</td></tr>
-    <tr><td><code>pause [Bots]</code></td><td><code>Operator</code></td><td>暂停指定机器人的自动挂卡模块。</td></tr>
-    <tr><td><code>resume [Bots]</code></td><td><code>FamilySharing</code></td><td>恢复指定机器人的自动挂卡进程。</td></tr>
-    <tr><td><code>2fa [Bots]</code></td><td><code>Master</code></td><td>为指定机器人生成临时两步验证令牌。</td></tr>
-    <tr><td><code>2faok [Bots]</code></td><td><code>Master</code></td><td>为指定机器人接受所有等待操作的交易确认。</td></tr>
-    <tr><td><code>stats</code></td><td><code>Owner</code></td><td>显示 ASF 进程统计信息。</td></tr>
-    <tr><td><code>status [Bots]</code></td><td><code>FamilySharing</code></td><td>显示指定机器人的状态。</td></tr>
-    <tr><td><code>version</code></td><td><code>FamilySharing</code></td><td>显示 ASF 的版本号。</td></tr>
-  </tbody>
-</table>`;
 
 function getASFHeaders(setting = getSteamSettings()): Record<string, string> {
   const origin = `${setting.asfProtocol}://${setting.asfHost}:${setting.asfPort}`;
@@ -54,6 +40,15 @@ function showASFRequired(): void {
     title: '此功能需要在设置中配置ASF IPC并开启ASF功能！',
     buttons: { confirm: '确定' }
   });
+}
+
+function normalizeASFCommandFromTable(rawCommand: string, asfBot: string): string {
+  const command = rawCommand.trim().replace(/^!/, '');
+  if (!command) return '';
+  if (asfBot.trim()) {
+    return `!${command.replace(/\[Bots\]/g, asfBot.trim())}`;
+  }
+  return `!${command}`;
 }
 
 export function asfSend(command = ''): void {
@@ -120,6 +115,17 @@ export function asfSend(command = ''): void {
 
 function showASFCommands(): void {
   const content = htmlToElement(ASF_COMMANDS_HTML);
+
+  content.addEventListener('click', (event) => {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest<HTMLButtonElement>('button.rh-asf-use[data-command]');
+    if (!button) return;
+    const setting = getSteamSettings();
+    const normalizedCommand = normalizeASFCommandFromTable(button.dataset.command ?? '', setting.asfBot ?? '');
+    if (!normalizedCommand) return;
+    asfSend(normalizedCommand);
+  });
+
   showModal({
     closeOnClickOutside: false,
     className: 'swal-user',

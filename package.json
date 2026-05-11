@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node esbuild.config.cjs",
+    "build": "node scripts/update-asf-commands.mjs && node esbuild.config.cjs",
     "typecheck": "tsc --noEmit",
     "test": "npm run typecheck && npm run build"
   },
