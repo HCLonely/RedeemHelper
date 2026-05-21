@@ -399,7 +399,7 @@ function activateCopiedProduct(event: ClipboardEvent): void {
         if (value) registerSteamKeys(productKey);
       });
     }
-  } else if (/^![\w\d]+\s+asf\s+.+/gi.test(productKey) && setting.asf) {
+  } else if ((/^![\w\d]+\s+asf\s+.+/gi.test(productKey) || /^!ALA\s+.+/gi.test(productKey)) && setting.asf) {
     if (!document.querySelector('div.rh-modal-overlay')) {
       showModal({ closeOnClickOutside: false, className: 'swal-user', title: '检测到您复制了以下ASF指令，是否执行？', text: productKey, buttons: { confirm: '执行', cancel: '取消' } }).then((value) => {
         if (value) asfRedeem(productKey);
