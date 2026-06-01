@@ -7,7 +7,7 @@
 // @version         4.0.0
 // @supportURL      https://github.com/HCLonely/RedeemHelper/issues
 // @homepageURL     https://github.com/HCLonely/RedeemHelper
-// @icon            https://github.com/HCLonely/RedeemHelper/raw/main/icon.ico
+// @icon            https://github.com/HCLonely/RedeemHelper/blob/main/icon.ico?raw=true
 // @tag             games
 
 // @match           *://*/*
