@@ -24,8 +24,8 @@
 ### 方式 1：直接安装编译产物（推荐）
 
 1. 安装并启用 Tampermonkey（或同类扩展）。
-2. 在脚本管理器中导入仓库根目录的 `RedeemHelper.user.js`。
-3. 保存后刷新目标页面。
+2. 点击以下链接安装：
+    - [RedeemHelper.user.js](./RedeemHelper.user.js?raw=true)
 
 ## 使用说明
 
