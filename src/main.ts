@@ -1,3 +1,4 @@
+import './shared/trusted-types';
 import { initGOG } from './modules/gog';
 import { initIG, runIGBatch } from './modules/ig';
 import { initItch, runItchExtract } from './modules/itch';
