@@ -19,11 +19,21 @@ export function request<T = unknown, TBody extends RequestBody = RequestBody>(op
     const finish = (response: GMResponse<T> | null, error?: unknown): void => {
       const status = response?.status ?? 0;
       const statusText = response?.statusText ?? (error ? 'Error' : '');
+      let responseData = response?.response;
+      if (options.responseType === 'json') {
+        if (typeof responseData !== 'object' && response?.responseText) {
+          try {
+            responseData = JSON.parse(response.responseText)
+          } catch (_e) {
+            //
+          }
+        }
+      }
       resolve({
         ok: status >= 200 && status < 300,
         status,
         statusText,
-        data: response?.response,
+        data: responseData,
         text: response?.responseText,
         response,
         error

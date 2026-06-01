@@ -4,6 +4,7 @@ type PartialUnifiedSettings = {
   steam?: Partial<UnifiedSettings['steam']>;
   ig?: Partial<UnifiedSettings['ig']>;
   itch?: Partial<UnifiedSettings['itch']>;
+  gog?: Partial<UnifiedSettings['gog']>;
 };
 
 export const defaultSettings: UnifiedSettings = {
@@ -25,6 +26,9 @@ export const defaultSettings: UnifiedSettings = {
   },
   itch: {
     autoClose: true
+  },
+  gog: {
+    enableButtons: true
   }
 };
 
@@ -41,6 +45,10 @@ function mergeSettings(settings: PartialUnifiedSettings = {}, base: UnifiedSetti
     itch: {
       ...base.itch,
       ...settings.itch
+    },
+    gog: {
+      ...base.gog,
+      ...settings.gog
     }
   };
 }

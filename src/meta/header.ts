@@ -4,7 +4,7 @@ export const USER_SCRIPT_HEADER = `// ==UserScript==
 // @author          HCLonely
 // @description     统一的游戏 Key 提取与领取辅助脚本，聚合了 Steam / IndieGala / itch.io。
 // @description:en  Unified helper for extracting and redeeming game keys.
-// @version         4.0.0
+// @version         4.0.1
 // @supportURL      https://github.com/HCLonely/RedeemHelper/issues
 // @homepageURL     https://github.com/HCLonely/RedeemHelper
 // @icon            https://github.com/HCLonely/RedeemHelper/blob/main/icon.ico?raw=true
@@ -22,5 +22,10 @@ export const USER_SCRIPT_HEADER = `// ==UserScript==
 // @grant           GM_xmlhttpRequest
 // @grant           GM_cookie
 // @run-at          document-idle
+// @connect         www.gog.com
+// @connect         www.indiegala.com
+// @connect         itch.io
+// @connect         store.steampowered.com
+// @connect         login.steampowered.com
 // @connect         *
 // ==/UserScript==`;

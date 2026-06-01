@@ -3,6 +3,7 @@ export interface MenuHandlers {
   onSteamASF?: () => void;
   onIGBatch?: () => void;
   onItchExtract?: () => void;
+  onGOGBatch?: () => void;
 }
 
 export function registerMenus(handlers: MenuHandlers): void {
@@ -27,5 +28,9 @@ export function registerMenus(handlers: MenuHandlers): void {
 
   if (handlers.onItchExtract) {
     GM_registerMenuCommand('入库所有ItchIo链接', wrapMenuHandler(handlers.onItchExtract));
+  }
+
+  if (handlers.onGOGBatch) {
+    GM_registerMenuCommand('领取所有GOG链接', wrapMenuHandler(handlers.onGOGBatch));
   }
 }

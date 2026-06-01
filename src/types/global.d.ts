@@ -1,7 +1,7 @@
 export {};
 
 declare global {
-  type Platform = 'steam' | 'ig' | 'itch';
+  type Platform = 'steam' | 'ig' | 'itch' | 'gog';
 
   interface UnifiedSettings {
     steam: {
@@ -22,6 +22,9 @@ declare global {
     };
     itch: {
       autoClose: boolean;
+    };
+    gog: {
+      enableButtons: boolean;
     };
   }
 

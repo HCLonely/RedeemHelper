@@ -18,8 +18,31 @@ const EXTERNAL_HOSTS = [
 
 const ITCH_CSS = `
 .rh-modal.break-all .rh-modal-title{word-wrap:break-word;word-break:break-all;}
-.${ITCH_BUTTON_CLASS}{margin-left:10px !important;}
-.freegames-codes .${ITCH_BUTTON_CLASS}{margin-top:10px !important;margin-left:0 !important;}
+.rh-claim-button{
+  display:inline-flex;align-items:center;gap:0.25em;
+  padding:0.15em 0.7em;
+  background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);
+  color:#ffffff !important;
+  font-weight:600;font-size:0.85em;line-height:1.35;
+  border:none;border-radius:0.35em;
+  cursor:pointer;text-decoration:none !important;
+  box-shadow:0 1px 3px rgba(22,163,74,0.35);
+  transition:all 0.2s ease;
+  vertical-align:middle;
+  white-space:nowrap;
+  margin-left:0.5em;
+}
+.rh-claim-button:hover{
+  background:linear-gradient(135deg,#16a34a 0%,#15803d 100%);
+  box-shadow:0 2px 8px rgba(22,163,74,0.45);
+  transform:translateY(-1px);
+  color:#ffffff !important;text-decoration:none !important;
+}
+.rh-claim-button:active{
+  transform:translateY(0);
+  box-shadow:0 1px 2px rgba(22,163,74,0.2);
+}
+.freegames-codes .rh-claim-button{margin-top:0.5em !important;margin-left:0 !important;}
 .shaigrorb-itch-button{position:relative;height:min-content;right:39px;background-color:#16a34a;top:4px;text-decoration-line:none;color:white;font-weight:bold;border-radius:2px;padding:5px;font-size:13px;}
 `;
 
@@ -64,11 +87,11 @@ function createRedeemButton(href: string): HTMLAnchorElement {
   });
 
   if (window.location.hostname === 'freegames.codes') {
-    button.className = `details__buy ${ITCH_BUTTON_CLASS}`;
+    button.className = 'details__buy rh-claim-button';
   } else if (window.location.hostname === 'shaigrorb.github.io') {
-    button.className = `shaigrorb-itch-button ${ITCH_BUTTON_CLASS}`;
+    button.className = 'shaigrorb-itch-button rh-claim-button';
   } else {
-    button.className = ITCH_BUTTON_CLASS;
+    button.className = 'rh-claim-button';
   }
 
   return button;
