@@ -26,6 +26,7 @@
 1. 安装并启用 Tampermonkey（或同类扩展）。
 2. 点击以下链接安装：
     - [RedeemHelper.user.js](./RedeemHelper.user.js?raw=true)
+    - [GreasyFork](https://greasyfork.org/zh-CN/scripts/36666-redeemhelper)
 
 ## 使用说明
 
