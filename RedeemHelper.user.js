@@ -4,9 +4,11 @@
 // @author          HCLonely
 // @description     统一的游戏 Key 提取与领取辅助脚本，聚合了 Steam / IndieGala / itch.io。
 // @description:en  Unified helper for extracting and redeeming game keys.
-// @version         4.0.2
+// @version         4.0.3
 // @supportURL      https://github.com/HCLonely/RedeemHelper/issues
 // @homepageURL     https://github.com/HCLonely/RedeemHelper
+// @updateURL       https://github.com/HCLonely/RedeemHelper/blob/main/RedeemHelper.user.js?raw=true
+// @downloadURL     https://github.com/HCLonely/RedeemHelper/blob/main/RedeemHelper.user.js?raw=true
 // @icon            https://github.com/HCLonely/RedeemHelper/blob/main/icon.ico?raw=true
 // @tag             games
 
