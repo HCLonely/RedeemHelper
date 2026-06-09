@@ -13,7 +13,7 @@ table.hclonely tr { background-color: #d4e3e5; }
 table.hclonely td { border-width: 1px; padding: 8px; border-style: solid; border-color: #a9c6c9; }
 table.hclonely caption { padding-top: 8px; color: #808294; text-align: center; caption-side: top; background-color: #94d7df; }
 table.hclonely h2 { margin: 0; font-size: 25px; }
-.rh-modal.swal-user { width: 80%; }
+.rh-modal.swal-user { width: 80%; max-width: 1000px; }
 table.hclonely a { color: #2196F3; }
 table.hclonely .rh-modal-button { padding: 5px; }
 #unusedKeyArea code { padding: 2px 4px; font-size: 90%; color: #c7254e; background-color: #f9f2f4; border-radius: 3px; }
