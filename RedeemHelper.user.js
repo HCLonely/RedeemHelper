@@ -4,7 +4,7 @@
 // @author          HCLonely
 // @description     统一的游戏 Key 提取与领取辅助脚本，聚合了 Steam / IndieGala / itch.io。
 // @description:en  Unified helper for extracting and redeeming game keys.
-// @version         4.0.4
+// @version         4.0.5
 // @supportURL      https://github.com/HCLonely/RedeemHelper/issues
 // @homepageURL     https://github.com/HCLonely/RedeemHelper
 // @updateURL       https://github.com/HCLonely/RedeemHelper/blob/main/RedeemHelper.user.js?raw=true
@@ -473,13 +473,11 @@
       link.classList.add(GOG_PROCESSED_CLASS);
       const href = link.href;
       if (!isEligibleGOGLink(href)) continue;
-      const button = document.createElement("a");
+      const button = document.createElement("button");
+      button.type = "button";
       button.className = `rh-claim-button ${GOG_BUTTON_CLASS}`;
-      button.href = "javascript:void(0)";
-      button.target = "_self";
       button.textContent = "领取";
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
+      button.addEventListener("click", () => {
         void claimGOGGiveaway("https://www.gog.com/giveaway/claim");
       });
       link.after(button);
@@ -680,14 +678,12 @@
       link.classList.add(IG_PROCESSED_CLASS);
       const href = link.href;
       if (!isEligibleIndieGalaLink(href)) continue;
-      const button = document.createElement("a");
+      const button = document.createElement("button");
+      button.type = "button";
       button.className = IG_BUTTON_CLASS;
-      button.href = "javascript:void(0)";
-      button.target = "_self";
       button.dataset.href = href;
       button.textContent = "入库";
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
+      button.addEventListener("click", () => {
         void addToIndiegalaLibrary(href);
       });
       link.after(button);
@@ -993,15 +989,13 @@ ${details}` : message);
     if (document.querySelector(".purchase_banner_inner") || !isFreePurchasePage(document)) return;
     const buyButton = document.querySelector(".buy_btn");
     if (!buyButton || buyButton.nextElementSibling?.classList.contains("redeem-itch-purchase")) return;
-    const button = document.createElement("a");
-    button.href = "javascript:void(0)";
-    button.target = "_self";
+    const button = document.createElement("button");
+    button.type = "button";
     button.className = "button redeem-itch-purchase";
     button.title = "仅支持免费游戏";
     button.dataset.itchHref = buyButton.href;
     button.textContent = "后台领取";
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
+    button.addEventListener("click", () => {
       void redeemItchGame(button.dataset.itchHref || buyButton.href);
     });
     buyButton.after(button);
@@ -1169,13 +1163,11 @@ ${details}` : message);
     }
   }
   function createRedeemButton(href) {
-    const button = document.createElement("a");
-    button.href = "javascript:void(0);";
-    button.target = "_self";
+    const button = document.createElement("button");
+    button.type = "button";
     button.dataset.itchHref = href;
     button.textContent = "领取";
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
+    button.addEventListener("click", () => {
       void redeemItchGame(href);
     });
     if (window.location.hostname === "freegames.codes") {
@@ -2663,7 +2655,7 @@ ${details}` : message);
       mouseClick(event);
       let html = htmlEl.innerHTML;
       keys.forEach((key) => {
-        html = html.replace(new RegExp(key, "gi"), `<a class="redee-key" href="javascript:void(0)" target="_self" data-key="${key}">${key}</a>`);
+        html = html.replace(new RegExp(key, "gi"), `<span class="redee-key" data-key="${key}" style="cursor:pointer;color:#1a9e3d;text-decoration:underline">${key}</span>`);
       });
       htmlEl.innerHTML = html;
       htmlEl.querySelectorAll(".redee-key").forEach((link) => {

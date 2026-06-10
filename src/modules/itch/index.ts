@@ -75,14 +75,12 @@ function isEligibleItchHref(href: string): boolean {
   }
 }
 
-function createRedeemButton(href: string): HTMLAnchorElement {
-  const button = document.createElement('a');
-  button.href = 'javascript:void(0);';
-  button.target = '_self';
+function createRedeemButton(href: string): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
   button.dataset.itchHref = href;
   button.textContent = '领取';
-  button.addEventListener('click', (event) => {
-    event.preventDefault();
+  button.addEventListener('click', () => {
     void redeemItchGame(href);
   });
 

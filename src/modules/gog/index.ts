@@ -53,13 +53,11 @@ function addButtons(): void {
     const href = link.href;
     if (!isEligibleGOGLink(href)) continue;
 
-    const button = document.createElement('a');
+    const button = document.createElement('button');
+    button.type = 'button';
     button.className = `rh-claim-button ${GOG_BUTTON_CLASS}`;
-    button.href = 'javascript:void(0)';
-    button.target = '_self';
     button.textContent = '领取';
-    button.addEventListener('click', (event) => {
-      event.preventDefault();
+    button.addEventListener('click', () => {
       void claimGOGGiveaway('https://www.gog.com/giveaway/claim');
     });
 

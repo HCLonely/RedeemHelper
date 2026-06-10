@@ -28,14 +28,12 @@ function addButtons(): void {
     const href = link.href;
     if (!isEligibleIndieGalaLink(href)) continue;
 
-    const button = document.createElement('a');
+    const button = document.createElement('button');
+    button.type = 'button';
     button.className = IG_BUTTON_CLASS;
-    button.href = 'javascript:void(0)';
-    button.target = '_self';
     button.dataset.href = href;
     button.textContent = '入库';
-    button.addEventListener('click', (event) => {
-      event.preventDefault();
+    button.addEventListener('click', () => {
       void addToIndiegalaLibrary(href);
     });
 

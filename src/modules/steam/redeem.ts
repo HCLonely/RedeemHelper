@@ -455,7 +455,7 @@ function bindClickListener(): void {
     mouseClick(event);
     let html = htmlEl.innerHTML;
     keys.forEach((key) => {
-      html = html.replace(new RegExp(key, 'gi'), `<a class="redee-key" href="javascript:void(0)" target="_self" data-key="${key}">${key}</a>`);
+      html = html.replace(new RegExp(key, 'gi'), `<span class="redee-key" data-key="${key}" style="cursor:pointer;color:#1a9e3d;text-decoration:underline">${key}</span>`);
     });
     htmlEl.innerHTML = html;
     htmlEl.querySelectorAll<HTMLElement>('.redee-key').forEach((link) => {

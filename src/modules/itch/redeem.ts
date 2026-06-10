@@ -271,15 +271,13 @@ export function injectItchPurchaseButton(): void {
   const buyButton = document.querySelector<HTMLAnchorElement>('.buy_btn');
   if (!buyButton || buyButton.nextElementSibling?.classList.contains('redeem-itch-purchase')) return;
 
-  const button = document.createElement('a');
-  button.href = 'javascript:void(0)';
-  button.target = '_self';
+  const button = document.createElement('button');
+  button.type = 'button';
   button.className = 'button redeem-itch-purchase';
   button.title = '仅支持免费游戏';
   button.dataset.itchHref = buyButton.href;
   button.textContent = '后台领取';
-  button.addEventListener('click', (event) => {
-    event.preventDefault();
+  button.addEventListener('click', () => {
     void redeemItchGame(button.dataset.itchHref || buyButton.href);
   });
 
