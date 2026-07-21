@@ -79,8 +79,11 @@ export function initSteam(): void {
       redeemAllPageKeys();
     }
   } catch (error) {
-    showModal('AuTo Redeem Steamkey脚本执行出错，详情请查看控制台！', (error as Error).stack, 'error');
     console.error(error);
+    if ((error as Error).message?.includes('TrustedHTML')) {
+      return;
+    }
+    showModal('AuTo Redeem Steamkey脚本执行出错，详情请查看控制台！', (error as Error).stack, 'error');
   }
 }
 

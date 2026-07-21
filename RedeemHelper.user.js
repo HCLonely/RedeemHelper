@@ -4,7 +4,7 @@
 // @author          HCLonely
 // @description     统一的游戏 Key 提取与领取辅助脚本，聚合了 Steam / IndieGala / itch.io。
 // @description:en  Unified helper for extracting and redeeming game keys.
-// @version         4.0.5
+// @version         4.0.6
 // @supportURL      https://github.com/HCLonely/RedeemHelper/issues
 // @homepageURL     https://github.com/HCLonely/RedeemHelper
 // @updateURL       https://github.com/HCLonely/RedeemHelper/blob/main/RedeemHelper.user.js?raw=true
@@ -33,45 +33,6 @@
 // ==/UserScript==
 "use strict";
 (() => {
-  // src/shared/trusted-types.ts
-  if (typeof trustedTypes !== "undefined" && trustedTypes.createPolicy) {
-    const policy = trustedTypes.createPolicy("tampermonkey-fix", {
-      createHTML: (input) => input,
-      createScript: (input) => input,
-      createScriptURL: (input) => input
-    });
-    const origInnerHTML = Object.getOwnPropertyDescriptor(Element.prototype, "innerHTML");
-    Object.defineProperty(Element.prototype, "innerHTML", {
-      get: origInnerHTML.get,
-      set: function(val) {
-        if (typeof val === "string") {
-          origInnerHTML.set.call(this, policy.createHTML(val));
-        } else {
-          origInnerHTML.set.call(this, val);
-        }
-      },
-      configurable: true,
-      enumerable: true
-    });
-    const origOuterHTML = Object.getOwnPropertyDescriptor(Element.prototype, "outerHTML");
-    Object.defineProperty(Element.prototype, "outerHTML", {
-      get: origOuterHTML.get,
-      set: function(val) {
-        if (typeof val === "string") {
-          origOuterHTML.set.call(this, policy.createHTML(val));
-        } else {
-          origOuterHTML.set.call(this, val);
-        }
-      },
-      configurable: true,
-      enumerable: true
-    });
-    const origInsertAdjacentHTML = Element.prototype.insertAdjacentHTML;
-    Element.prototype.insertAdjacentHTML = function(position, text) {
-      origInsertAdjacentHTML.call(this, position, policy.createHTML(text));
-    };
-  }
-
   // src/shared/http.ts
   function request(options) {
     return new Promise((resolve) => {
@@ -2741,8 +2702,11 @@ table.hclonely .rh-modal-button { padding: 5px; }
         redeemAllPageKeys();
       }
     } catch (error) {
-      showModal("AuTo Redeem Steamkey脚本执行出错，详情请查看控制台！", error.stack, "error");
       console.error(error);
+      if (error.message?.includes("TrustedHTML")) {
+        return;
+      }
+      showModal("AuTo Redeem Steamkey脚本执行出错，详情请查看控制台！", error.stack, "error");
     }
   }
   function openSteamSettings() {
