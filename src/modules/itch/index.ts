@@ -2,19 +2,21 @@ import { isHost } from '../../shared/dom';
 import { mountObserver } from '../../shared/observer';
 import { redeemCurrentItchBundle } from './bundle';
 import { extractAndRedeemItchLinks } from './extract';
+import itchFreeListSites from './itchFreeListSite.json';
 import { handleItchDownloadPage, injectItchPurchaseButton, redeemItchGame } from './redeem';
 
 const ITCH_PROCESSED_CLASS = 'redeem-itch-game';
 const ITCH_BUTTON_CLASS = 'redeem-itch-button';
-const EXTERNAL_HOSTS = [
+const ITCH_EXTRACT_BUTTON_ID = 'redeem-itch-extract';
+const ITCH_EXTRACT_BUTTON_POSITION_KEY = 'itchExtractButtonPosition';
+const EXTERNAL_HOSTS = [...new Set([
   'keylol.com',
   'www.steamgifts.com',
   'www.reddit.com',
   'new.isthereanydeal.com',
   'freegames.codes',
-  'itchclaim.tmbpeter.com',
-  'shaigrorb.github.io'
-];
+  ...itchFreeListSites.map((site) => new URL(site).hostname)
+])];
 
 const ITCH_CSS = `
 .rh-modal.break-all .rh-modal-title{word-wrap:break-word;word-break:break-all;}
@@ -44,6 +46,8 @@ const ITCH_CSS = `
 }
 .freegames-codes .rh-claim-button{margin-top:0.5em !important;margin-left:0 !important;}
 .shaigrorb-itch-button{position:relative;height:min-content;right:39px;background-color:#16a34a;top:4px;text-decoration-line:none;color:white;font-weight:bold;border-radius:2px;padding:5px;font-size:13px;}
+#${ITCH_EXTRACT_BUTTON_ID}{position:fixed;top:16px;right:16px;z-index:2147483647;margin:0;padding:8px 16px;font-size:14px;line-height:1.5;cursor:grab;user-select:none;touch-action:none;}
+#${ITCH_EXTRACT_BUTTON_ID}.rh-dragging{cursor:grabbing;transition:none;transform:none;}
 `;
 
 let initialized = false;
@@ -73,6 +77,112 @@ function isEligibleItchHref(href: string): boolean {
   } catch {
     return false;
   }
+}
+
+function isItchFreeListSite(): boolean {
+  const currentUrl = new URL(window.location.href);
+
+  return itchFreeListSites.some((site) => {
+    const configuredUrl = new URL(site);
+    const configuredPath = configuredUrl.pathname.replace(/\/$/, '');
+    const currentPath = currentUrl.pathname.replace(/\/$/, '');
+
+    return currentUrl.hostname === configuredUrl.hostname
+      && (currentPath === configuredPath || currentPath.startsWith(`${configuredPath}/`));
+  });
+}
+
+function injectItchExtractButton(): void {
+  if (document.getElementById(ITCH_EXTRACT_BUTTON_ID)) return;
+
+  type ButtonPosition = { left: number; top: number };
+
+  const button = document.createElement('button');
+  button.id = ITCH_EXTRACT_BUTTON_ID;
+  button.type = 'button';
+  button.className = 'rh-claim-button';
+  button.textContent = '一键领取';
+  button.title = '点击一键领取，拖拽可移动位置';
+  document.body.append(button);
+
+  const clampPosition = (left: number, top: number): ButtonPosition => ({
+    left: Math.max(0, Math.min(left, window.innerWidth - button.offsetWidth)),
+    top: Math.max(0, Math.min(top, window.innerHeight - button.offsetHeight))
+  });
+  const applyPosition = (position: ButtonPosition): void => {
+    const clamped = clampPosition(position.left, position.top);
+    button.style.left = `${clamped.left}px`;
+    button.style.top = `${clamped.top}px`;
+    button.style.right = 'auto';
+  };
+
+  const savedPosition = GM_getValue<Partial<ButtonPosition> | null>(ITCH_EXTRACT_BUTTON_POSITION_KEY, null);
+  if (Number.isFinite(savedPosition?.left) && Number.isFinite(savedPosition?.top)) {
+    applyPosition({ left: savedPosition!.left!, top: savedPosition!.top! });
+  }
+
+  let pointerId: number | null = null;
+  let startX = 0;
+  let startY = 0;
+  let offsetX = 0;
+  let offsetY = 0;
+  let suppressClick = false;
+
+  button.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return;
+
+    const rect = button.getBoundingClientRect();
+    pointerId = event.pointerId;
+    startX = event.clientX;
+    startY = event.clientY;
+    offsetX = event.clientX - rect.left;
+    offsetY = event.clientY - rect.top;
+    suppressClick = false;
+    button.setPointerCapture(event.pointerId);
+    button.classList.add('rh-dragging');
+  });
+
+  button.addEventListener('pointermove', (event) => {
+    if (event.pointerId !== pointerId) return;
+
+    if (Math.hypot(event.clientX - startX, event.clientY - startY) >= 3) {
+      suppressClick = true;
+    }
+    if (!suppressClick) return;
+
+    event.preventDefault();
+    applyPosition({ left: event.clientX - offsetX, top: event.clientY - offsetY });
+  });
+
+  const finishDragging = (event: PointerEvent): void => {
+    if (event.pointerId !== pointerId) return;
+
+    pointerId = null;
+    button.classList.remove('rh-dragging');
+    if (!suppressClick) return;
+
+    const rect = button.getBoundingClientRect();
+    const position = clampPosition(rect.left, rect.top);
+    applyPosition(position);
+    GM_setValue(ITCH_EXTRACT_BUTTON_POSITION_KEY, position);
+  };
+  button.addEventListener('pointerup', finishDragging);
+  button.addEventListener('pointercancel', finishDragging);
+
+  button.addEventListener('click', (event) => {
+    if (suppressClick) {
+      event.preventDefault();
+      event.stopPropagation();
+      suppressClick = false;
+      return;
+    }
+    void runItchExtract();
+  });
+
+  window.addEventListener('resize', () => {
+    const rect = button.getBoundingClientRect();
+    applyPosition({ left: rect.left, top: rect.top });
+  });
 }
 
 function createRedeemButton(href: string): HTMLButtonElement {
@@ -169,6 +279,8 @@ export function initItch(): void {
   }
 
   if (!isHost(EXTERNAL_HOSTS)) return;
+
+  if (isItchFreeListSite()) injectItchExtractButton();
 
   document.documentElement.classList.toggle('freegames-codes', window.location.hostname === 'freegames.codes');
   observer = mountObserver(addExternalRedeemButtons);

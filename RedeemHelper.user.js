@@ -4,7 +4,7 @@
 // @author          HCLonely
 // @description     统一的游戏 Key 提取与领取辅助脚本，聚合了 Steam / IndieGala / itch.io。
 // @description:en  Unified helper for extracting and redeeming game keys.
-// @version         4.0.6
+// @version         4.0.7
 // @supportURL      https://github.com/HCLonely/RedeemHelper/issues
 // @homepageURL     https://github.com/HCLonely/RedeemHelper
 // @updateURL       https://github.com/HCLonely/RedeemHelper/blob/main/RedeemHelper.user.js?raw=true
@@ -444,6 +444,10 @@
       link.after(button);
     }
   }
+  function collectBatchLinks() {
+    const links = Array.from(document.querySelectorAll(`a.${GOG_BUTTON_CLASS}`)).map((button) => button.previousElementSibling).filter((sibling) => sibling !== null && sibling.tagName === "A").map((link) => link.href);
+    return [...new Set(links)];
+  }
   async function claimGOGGiveaway(url) {
     void showModal({
       title: "正在领取GOG...",
@@ -479,6 +483,29 @@
     initialized = true;
     GM_addStyle(GOG_CSS);
     observer = mountObserver(addButtons);
+  }
+  async function runGOGBatch() {
+    addButtons();
+    const links = collectBatchLinks();
+    const failedLinks = [];
+    for (const link of links) {
+      const ok = await claimGOGGiveaway(link);
+      if (!ok) {
+        failedLinks.push(link);
+      }
+    }
+    if (failedLinks.length === 0) {
+      void showModal({
+        title: "全部领取完成！",
+        icon: "success"
+      });
+      return;
+    }
+    void showModal({
+      title: "以下任务未完成！",
+      icon: "warning",
+      text: failedLinks.join("\n")
+    });
   }
 
   // src/shared/dom.ts
@@ -650,7 +677,7 @@
       link.after(button);
     }
   }
-  function collectBatchLinks() {
+  function collectBatchLinks2() {
     const links = Array.from(document.querySelectorAll(`a.${IG_BUTTON_CLASS}`)).filter((button) => !button.previousElementSibling?.classList.contains("ig-owned")).map((button) => button.dataset.href || "").filter(Boolean);
     return [...new Set(links)];
   }
@@ -663,7 +690,7 @@
   async function runIGBatch() {
     if (isHost("indiegala.com")) return;
     addButtons2();
-    const links = collectBatchLinks();
+    const links = collectBatchLinks2();
     const failedLinks = [];
     for (const link of links) {
       const result = await addToIndiegalaLibrary(link);
@@ -1064,17 +1091,24 @@ ${details}` : message);
     log3("全部领取完成！", "success");
   }
 
+  // src/modules/itch/itchFreeListSite.json
+  var itchFreeListSite_default = [
+    "https://itchclaim.tmbpeter.com/",
+    "https://shaigrorb.github.io/freetchio/"
+  ];
+
   // src/modules/itch/index.ts
   var ITCH_PROCESSED_CLASS = "redeem-itch-game";
-  var EXTERNAL_HOSTS = [
+  var ITCH_EXTRACT_BUTTON_ID = "redeem-itch-extract";
+  var ITCH_EXTRACT_BUTTON_POSITION_KEY = "itchExtractButtonPosition";
+  var EXTERNAL_HOSTS = [.../* @__PURE__ */ new Set([
     "keylol.com",
     "www.steamgifts.com",
     "www.reddit.com",
     "new.isthereanydeal.com",
     "freegames.codes",
-    "itchclaim.tmbpeter.com",
-    "shaigrorb.github.io"
-  ];
+    ...itchFreeListSite_default.map((site) => new URL(site).hostname)
+  ])];
   var ITCH_CSS = `
 .rh-modal.break-all .rh-modal-title{word-wrap:break-word;word-break:break-all;}
 .rh-claim-button{
@@ -1103,6 +1137,8 @@ ${details}` : message);
 }
 .freegames-codes .rh-claim-button{margin-top:0.5em !important;margin-left:0 !important;}
 .shaigrorb-itch-button{position:relative;height:min-content;right:39px;background-color:#16a34a;top:4px;text-decoration-line:none;color:white;font-weight:bold;border-radius:2px;padding:5px;font-size:13px;}
+#${ITCH_EXTRACT_BUTTON_ID}{position:fixed;top:16px;right:16px;z-index:2147483647;margin:0;padding:8px 16px;font-size:14px;line-height:1.5;cursor:grab;user-select:none;touch-action:none;}
+#${ITCH_EXTRACT_BUTTON_ID}.rh-dragging{cursor:grabbing;transition:none;transform:none;}
 `;
   var initialized3 = false;
   var observer3 = null;
@@ -1122,6 +1158,91 @@ ${details}` : message);
     } catch {
       return false;
     }
+  }
+  function isItchFreeListSite() {
+    const currentUrl = new URL(window.location.href);
+    return itchFreeListSite_default.some((site) => {
+      const configuredUrl = new URL(site);
+      const configuredPath = configuredUrl.pathname.replace(/\/$/, "");
+      const currentPath = currentUrl.pathname.replace(/\/$/, "");
+      return currentUrl.hostname === configuredUrl.hostname && (currentPath === configuredPath || currentPath.startsWith(`${configuredPath}/`));
+    });
+  }
+  function injectItchExtractButton() {
+    if (document.getElementById(ITCH_EXTRACT_BUTTON_ID)) return;
+    const button = document.createElement("button");
+    button.id = ITCH_EXTRACT_BUTTON_ID;
+    button.type = "button";
+    button.className = "rh-claim-button";
+    button.textContent = "一键领取";
+    button.title = "点击一键领取，拖拽可移动位置";
+    document.body.append(button);
+    const clampPosition = (left, top) => ({
+      left: Math.max(0, Math.min(left, window.innerWidth - button.offsetWidth)),
+      top: Math.max(0, Math.min(top, window.innerHeight - button.offsetHeight))
+    });
+    const applyPosition = (position) => {
+      const clamped = clampPosition(position.left, position.top);
+      button.style.left = `${clamped.left}px`;
+      button.style.top = `${clamped.top}px`;
+      button.style.right = "auto";
+    };
+    const savedPosition = GM_getValue(ITCH_EXTRACT_BUTTON_POSITION_KEY, null);
+    if (Number.isFinite(savedPosition?.left) && Number.isFinite(savedPosition?.top)) {
+      applyPosition({ left: savedPosition.left, top: savedPosition.top });
+    }
+    let pointerId = null;
+    let startX = 0;
+    let startY = 0;
+    let offsetX = 0;
+    let offsetY = 0;
+    let suppressClick = false;
+    button.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      const rect = button.getBoundingClientRect();
+      pointerId = event.pointerId;
+      startX = event.clientX;
+      startY = event.clientY;
+      offsetX = event.clientX - rect.left;
+      offsetY = event.clientY - rect.top;
+      suppressClick = false;
+      button.setPointerCapture(event.pointerId);
+      button.classList.add("rh-dragging");
+    });
+    button.addEventListener("pointermove", (event) => {
+      if (event.pointerId !== pointerId) return;
+      if (Math.hypot(event.clientX - startX, event.clientY - startY) >= 3) {
+        suppressClick = true;
+      }
+      if (!suppressClick) return;
+      event.preventDefault();
+      applyPosition({ left: event.clientX - offsetX, top: event.clientY - offsetY });
+    });
+    const finishDragging = (event) => {
+      if (event.pointerId !== pointerId) return;
+      pointerId = null;
+      button.classList.remove("rh-dragging");
+      if (!suppressClick) return;
+      const rect = button.getBoundingClientRect();
+      const position = clampPosition(rect.left, rect.top);
+      applyPosition(position);
+      GM_setValue(ITCH_EXTRACT_BUTTON_POSITION_KEY, position);
+    };
+    button.addEventListener("pointerup", finishDragging);
+    button.addEventListener("pointercancel", finishDragging);
+    button.addEventListener("click", (event) => {
+      if (suppressClick) {
+        event.preventDefault();
+        event.stopPropagation();
+        suppressClick = false;
+        return;
+      }
+      void runItchExtract();
+    });
+    window.addEventListener("resize", () => {
+      const rect = button.getBoundingClientRect();
+      applyPosition({ left: rect.left, top: rect.top });
+    });
   }
   function createRedeemButton(href) {
     const button = document.createElement("button");
@@ -1200,6 +1321,7 @@ ${details}` : message);
       return;
     }
     if (!isHost(EXTERNAL_HOSTS)) return;
+    if (isItchFreeListSite()) injectItchExtractButton();
     document.documentElement.classList.toggle("freegames-codes", window.location.hostname === "freegames.codes");
     observer3 = mountObserver(addExternalRedeemButtons);
   }
@@ -2813,8 +2935,8 @@ table.hclonely .rh-modal-button { padding: 5px; }
       onOpenSettings: openSteamSettings,
       onSteamASF: runSteamASF,
       onIGBatch: runIGBatch,
-      onItchExtract: runItchExtract
-      // onGOGBatch: runGOGBatch,
+      onItchExtract: runItchExtract,
+      onGOGBatch: runGOGBatch
     });
   }
   bootstrap();

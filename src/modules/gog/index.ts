@@ -117,32 +117,32 @@ export function initGOG(): void {
   observer = mountObserver(addButtons);
 }
 
-// export async function runGOGBatch(): Promise<void> {
-//   addButtons();
-//   const links = collectBatchLinks();
-//   const failedLinks: string[] = [];
+export async function runGOGBatch(): Promise<void> {
+  addButtons();
+  const links = collectBatchLinks();
+  const failedLinks: string[] = [];
 
-//   for (const link of links) {
-//     const ok = await claimGOGGiveaway(link);
-//     if (!ok) {
-//       failedLinks.push(link);
-//     }
-//   }
+  for (const link of links) {
+    const ok = await claimGOGGiveaway(link);
+    if (!ok) {
+      failedLinks.push(link);
+    }
+  }
 
-//   if (failedLinks.length === 0) {
-//     void showModal({
-//       title: '全部领取完成！',
-//       icon: 'success'
-//     });
-//     return;
-//   }
+  if (failedLinks.length === 0) {
+    void showModal({
+      title: '全部领取完成！',
+      icon: 'success'
+    });
+    return;
+  }
 
-//   void showModal({
-//     title: '以下任务未完成！',
-//     icon: 'warning',
-//     text: failedLinks.join('\n')
-//   });
-// }
+  void showModal({
+    title: '以下任务未完成！',
+    icon: 'warning',
+    text: failedLinks.join('\n')
+  });
+}
 
 export function getGOGObserver(): MutationObserver | null {
   return observer;
