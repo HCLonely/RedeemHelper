@@ -1,7 +1,8 @@
 import { request, type RequestResult } from '../../shared/http';
 import { getSettings } from '../../shared/storage';
-import { updateOrShowModal } from '../../shared/ui';
 import { redeemItchBundle } from './bundle';
+import { reportItch } from './logging';
+import type { ItchRedeemResult, ItchReporter } from './types';
 
 interface DownloadUrlResponse {
   url?: string;
@@ -14,22 +15,6 @@ type ClaimCheckWindow = Window & typeof globalThis & {
 const GAME_URL_RE = /^https?:\/\/.+?\.itch\.io\/[^/?#]+\/?(?:purchase(?:\?.*)?)?$/i;
 const REWARD_PURCHASE_URL_RE = /^https?:\/\/.+?\.itch\.io\/[^/?#]+\/purchase\?[^#]*reward_id=/i;
 const BUNDLE_URL_RE = /^https?:\/\/itch\.io\/s\/\d+\/.+/i;
-
-function log(message: unknown, icon: SwalIcon = 'info', details?: string): void {
-  if (typeof message !== 'string') {
-    console.log(message);
-    return;
-  }
-
-  updateOrShowModal({
-    title: message,
-    text: details,
-    icon,
-    className: 'break-all'
-  });
-
-  console.log(details ? `${message}\n${details}` : message);
-}
 
 function parseHtml(html: string): Document {
   return new DOMParser().parseFromString(html, 'text/html');
@@ -86,14 +71,14 @@ function normalizeGameUrl(target: string): string | null {
   return url.href.replace(/\/$/, '');
 }
 
-async function reportRequestFailure(message: string, response: RequestResult<unknown>): Promise<void> {
-  log(message, 'error');
-  log(response);
+function requestFailure(url: string, message: string, response: RequestResult<unknown>, reporter?: ItchReporter): ItchRedeemResult {
+  const details = `${url} (${response.status} ${response.statusText || 'Request failed'})`;
+  reportItch(reporter, message, 'error', details);
+  return { url, status: 'failed', message: details };
 }
 
-async function checkOwnedAndRedeem(url: string): Promise<void> {
-  log('当前游戏链接:', 'info', url);
-  log('正在检测游戏是否拥有...', 'info', url);
+async function checkOwnedAndRedeem(url: string, reporter?: ItchReporter): Promise<ItchRedeemResult> {
+  reportItch(reporter, '正在检测游戏是否拥有...', 'info', url);
 
   const response = await request<string>({
     url,
@@ -101,21 +86,20 @@ async function checkOwnedAndRedeem(url: string): Promise<void> {
   });
 
   if (!response.ok || !response.text) {
-    await reportRequestFailure('请求失败！', response);
-    return;
+    return requestFailure(url, '游戏页面请求失败！', response, reporter);
   }
 
   if (isOwnedPageText(response.text)) {
-    log('游戏已拥有！', 'success');
-    return;
+    reportItch(reporter, '游戏已拥有！', 'success', url);
+    return { url, status: 'owned' };
   }
 
-  await purchase(url);
+  return purchase(url, reporter);
 }
 
-async function purchase(url: string): Promise<void> {
+async function purchase(url: string, reporter?: ItchReporter): Promise<ItchRedeemResult> {
   try {
-    log('正在加载购买页面...', 'info', url);
+    reportItch(reporter, '正在加载购买页面...', 'info', url);
     const purchaseUrl = url.includes('/purchase') ? url : `${url}/purchase`;
     const response = await request<string>({
       url: purchaseUrl,
@@ -123,33 +107,33 @@ async function purchase(url: string): Promise<void> {
     });
 
     if (!response.ok || !response.text) {
-      await reportRequestFailure('请求失败！', response);
-      return;
+      return requestFailure(url, '购买页面请求失败！', response, reporter);
     }
 
     const document = parseHtml(response.text);
     if (!isFreePurchasePage(document)) {
-      log('价格不为 0, 可能活动已结束！', 'error');
-      return;
+      reportItch(reporter, '价格不为 0，可能活动已结束！', 'warning', url);
+      return { url, status: 'expired' };
     }
 
     const csrfToken = inputValue(document, '[name="csrf_token"]');
     const rewardId = inputValue(document, '[name="reward_id"]');
 
     if (!csrfToken) {
-      log('获取 csrf_token 失败！', 'error');
-      return;
+      reportItch(reporter, '获取 csrf_token 失败！', 'error', url);
+      return { url, status: 'failed', message: 'Missing csrf_token' };
     }
 
-    await download(purchaseUrl.replace(/\/purchase.*/, ''), csrfToken, rewardId);
+    return download(purchaseUrl.replace(/\/purchase.*/, ''), csrfToken, rewardId, reporter);
   } catch (error) {
-    log('请求失败！', 'error');
-    log(error);
+    const message = error instanceof Error ? error.message : String(error);
+    reportItch(reporter, '领取请求失败！', 'error', `${url}: ${message}`);
+    return { url, status: 'failed', message };
   }
 }
 
-async function download(url: string, csrfToken: string, rewardId?: string): Promise<void> {
-  log('正在请求下载页面...', 'info', url);
+async function download(url: string, csrfToken: string, rewardId: string | undefined, reporter?: ItchReporter): Promise<ItchRedeemResult> {
+  reportItch(reporter, '正在请求下载页面...', 'info', url);
 
   const body = new URLSearchParams({ csrf_token: csrfToken });
   if (rewardId) body.set('reward_id', rewardId);
@@ -165,11 +149,10 @@ async function download(url: string, csrfToken: string, rewardId?: string): Prom
   });
 
   if (response.ok && response.data?.url) {
-    await loadDownload(response.data.url, url);
-    return;
+    return loadDownload(response.data.url, url, reporter);
   }
 
-  await reportRequestFailure('请求失败！', response);
+  return requestFailure(url, '下载地址请求失败！', response, reporter);
 }
 
 function downloadHeaders(url: URL, referer: string): Record<string, string> {
@@ -183,8 +166,8 @@ function downloadHeaders(url: URL, referer: string): Record<string, string> {
   };
 }
 
-async function loadDownload(downloadUrl: string, referer: string): Promise<void> {
-  log('正在加载下载页面...');
+async function loadDownload(downloadUrl: string, referer: string, reporter?: ItchReporter): Promise<ItchRedeemResult> {
+  reportItch(reporter, '正在加载下载页面...', 'info', referer);
   const url = new URL(downloadUrl);
   const response = await request<string>({
     url: url.href,
@@ -193,8 +176,7 @@ async function loadDownload(downloadUrl: string, referer: string): Promise<void>
   });
 
   if (!response.ok || !response.text) {
-    await reportRequestFailure('请求失败！', response);
-    return;
+    return requestFailure(referer, '下载页面请求失败！', response, reporter);
   }
 
   const document = parseHtml(response.text);
@@ -204,27 +186,28 @@ async function loadDownload(downloadUrl: string, referer: string): Promise<void>
     || claimButton?.closest('form') as HTMLFormElement | null;
 
   if (isLinkedDownloadPage(document)) {
-    log('领取成功！', 'success');
+    reportItch(reporter, '领取成功！', 'success', referer);
+    return { url: referer, status: 'claimed' };
   } else if (claimForm) {
     const action = claimForm.getAttribute('action');
     const csrfToken = claimForm.querySelector<HTMLInputElement>('input[name="csrf_token"]')?.value || '';
     if (action && csrfToken) {
-      await claimGame(new URL(action, url.href).href, csrfToken, url.href);
+      return claimGame(new URL(action, url.href).href, csrfToken, url.href, referer, reporter);
     } else {
-      log('获取领取表单失败！', 'error');
+      reportItch(reporter, '获取领取表单失败！', 'error', referer);
+      return { url: referer, status: 'failed', message: 'Invalid claim form' };
     }
   } else if (response.response?.finalUrl?.includes('/register')) {
-    log('领取失败，请先登录！', 'error');
+    reportItch(reporter, '领取失败，请先登录！', 'error', referer);
+    return { url: referer, status: 'login-required' };
   } else {
-    log('领取完成，结果未知！', 'success');
+    reportItch(reporter, '领取完成，结果未知！', 'warning', referer);
+    return { url: referer, status: 'unknown' };
   }
-
-  const checker = (window as ClaimCheckWindow).checkItchGame;
-  if (typeof checker === 'function') checker();
 }
 
-async function claimGame(action: string, token: string, referer: string): Promise<void> {
-  log('正在领取游戏...');
+async function claimGame(action: string, token: string, referer: string, gameUrl: string, reporter?: ItchReporter): Promise<ItchRedeemResult> {
+  reportItch(reporter, '正在领取游戏...', 'info', gameUrl);
   const url = new URL(action);
   const response = await request<string, string>({
     url: url.href,
@@ -240,12 +223,16 @@ async function claimGame(action: string, token: string, referer: string): Promis
 
   if (response.ok && response.text) {
     const document = parseHtml(response.text);
-    log(isLinkedDownloadPage(document) ? '领取成功！' : '领取完成，结果未知！', 'success');
+    const claimed = isLinkedDownloadPage(document);
+    reportItch(reporter, claimed ? '领取成功！' : '领取完成，结果未知！', claimed ? 'success' : 'warning', gameUrl);
+    const checker = (window as ClaimCheckWindow).checkItchGame;
+    if (typeof checker === 'function') checker();
+    return { url: gameUrl, status: claimed ? 'claimed' : 'unknown' };
   } else if (response.response?.finalUrl?.includes('/register')) {
-    log('请先登录！', 'error');
-    log(response);
+    reportItch(reporter, '请先登录！', 'error', gameUrl);
+    return { url: gameUrl, status: 'login-required' };
   } else {
-    await reportRequestFailure('请求失败！', response);
+    return requestFailure(gameUrl, '领取请求失败！', response, reporter);
   }
 }
 
@@ -284,16 +271,19 @@ export function injectItchPurchaseButton(): void {
   buyButton.after(button);
 }
 
-export async function redeemItchGame(target: string): Promise<void> {
-  log('当前游戏/优惠包链接:', 'info', target);
+export async function redeemItchGame(target: string, reporter?: ItchReporter): Promise<ItchRedeemResult> {
+  reportItch(reporter, '当前游戏/优惠包链接:', 'info', target);
 
   if (BUNDLE_URL_RE.test(target)) {
-    await redeemItchBundle(target);
-    return;
+    await redeemItchBundle(target, reporter);
+    return { url: target, status: 'unknown', message: 'Bundle processed' };
   }
 
   const url = normalizeGameUrl(target);
-  if (!url) return;
+  if (!url) {
+    reportItch(reporter, '无效的 itch.io 链接，已跳过', 'warning', target);
+    return { url: target, status: 'failed', message: 'Invalid itch.io URL' };
+  }
 
-  await checkOwnedAndRedeem(url);
+  return checkOwnedAndRedeem(url, reporter);
 }

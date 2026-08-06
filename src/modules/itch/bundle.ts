@@ -1,18 +1,9 @@
 import { request } from '../../shared/http';
-import { updateOrShowModal } from '../../shared/ui';
+import { reportItch } from './logging';
 import { redeemItchGame } from './redeem';
+import type { ItchReporter } from './types';
 
 const BUNDLE_URL_RE = /^https?:\/\/itch\.io\/s\/\d+\/.+/i;
-
-function log(message: unknown, icon: SwalIcon = 'info', details?: string): void {
-  if (typeof message !== 'string') {
-    console.log(message);
-    return;
-  }
-
-  updateOrShowModal({ title: message, text: details, icon, className: 'break-all' });
-  console.log(details ? `${message}\n${details}` : message);
-}
 
 function parseBundleGames(html: string, baseUrl: string): string[] {
   const document = new DOMParser().parseFromString(html, 'text/html');
@@ -23,8 +14,8 @@ function parseBundleGames(html: string, baseUrl: string): string[] {
   return [...new Set(games)];
 }
 
-export async function getItchBundleGames(url: string): Promise<string[]> {
-  log('正在获取优惠包信息...', 'info', url);
+export async function getItchBundleGames(url: string, reporter?: ItchReporter): Promise<string[]> {
+  reportItch(reporter, '正在获取优惠包信息...', 'info', url);
 
   const response = await request<string>({
     url,
@@ -32,25 +23,24 @@ export async function getItchBundleGames(url: string): Promise<string[]> {
   });
 
   if (!response.ok || !response.text) {
-    log('请求失败！', 'error');
-    log(response);
+    reportItch(reporter, '优惠包请求失败！', 'error', `${url} (${response.status} ${response.statusText})`);
     return [];
   }
 
   if (response.text.includes('not_active_notification')) {
-    log('活动已结束！', 'error');
+    reportItch(reporter, '优惠包活动已结束！', 'warning', url);
     return [];
   }
 
   return parseBundleGames(response.text, url);
 }
 
-export async function redeemItchBundle(url: string): Promise<void> {
+export async function redeemItchBundle(url: string, reporter?: ItchReporter): Promise<void> {
   if (!BUNDLE_URL_RE.test(url)) return;
 
-  const games = await getItchBundleGames(url);
+  const games = await getItchBundleGames(url, reporter);
   for (const game of games) {
-    await redeemItchGame(game);
+    await redeemItchGame(game, reporter);
   }
 }
 

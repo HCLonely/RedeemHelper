@@ -4,7 +4,7 @@
 // @author          HCLonely
 // @description     统一的游戏 Key 提取与领取辅助脚本，聚合了 Steam / IndieGala / itch.io。
 // @description:en  Unified helper for extracting and redeeming game keys.
-// @version         4.0.7
+// @version         4.1.0
 // @supportURL      https://github.com/HCLonely/RedeemHelper/issues
 // @homepageURL     https://github.com/HCLonely/RedeemHelper
 // @updateURL       https://github.com/HCLonely/RedeemHelper/blob/main/RedeemHelper.user.js?raw=true
@@ -29,6 +29,8 @@
 // @connect         itch.io
 // @connect         store.steampowered.com
 // @connect         login.steampowered.com
+// @connect         itchclaim.tmbpeter.com
+// @connect         shaigrorb.github.io
 // @connect         *
 // ==/UserScript==
 "use strict";
@@ -713,6 +715,28 @@
     });
   }
 
+  // src/modules/itch/logging.ts
+  var ICON_BY_LEVEL = {
+    info: "info",
+    success: "success",
+    warning: "warning",
+    error: "error"
+  };
+  function reportItch(reporter, message, level = "info", details) {
+    if (reporter) {
+      reporter({ timestamp: Date.now(), level, message, details });
+      return;
+    }
+    updateOrShowModal({
+      title: message,
+      text: details,
+      icon: ICON_BY_LEVEL[level],
+      className: "break-all"
+    });
+    console.log(details ? `${message}
+${details}` : message);
+  }
+
   // src/shared/storage.ts
   var SETTINGS_KEY = "setting";
   var defaultSettings = {
@@ -770,20 +794,6 @@
   var GAME_URL_RE = /^https?:\/\/.+?\.itch\.io\/[^/?#]+\/?(?:purchase(?:\?.*)?)?$/i;
   var REWARD_PURCHASE_URL_RE = /^https?:\/\/.+?\.itch\.io\/[^/?#]+\/purchase\?[^#]*reward_id=/i;
   var BUNDLE_URL_RE = /^https?:\/\/itch\.io\/s\/\d+\/.+/i;
-  function log(message, icon = "info", details) {
-    if (typeof message !== "string") {
-      console.log(message);
-      return;
-    }
-    updateOrShowModal({
-      title: message,
-      text: details,
-      icon,
-      className: "break-all"
-    });
-    console.log(details ? `${message}
-${details}` : message);
-  }
   function parseHtml(html) {
     return new DOMParser().parseFromString(html, "text/html");
   }
@@ -824,58 +834,57 @@ ${details}` : message);
     url.hash = "";
     return url.href.replace(/\/$/, "");
   }
-  async function reportRequestFailure(message, response) {
-    log(message, "error");
-    log(response);
+  function requestFailure(url, message, response, reporter) {
+    const details = `${url} (${response.status} ${response.statusText || "Request failed"})`;
+    reportItch(reporter, message, "error", details);
+    return { url, status: "failed", message: details };
   }
-  async function checkOwnedAndRedeem(url) {
-    log("当前游戏链接:", "info", url);
-    log("正在检测游戏是否拥有...", "info", url);
+  async function checkOwnedAndRedeem(url, reporter) {
+    reportItch(reporter, "正在检测游戏是否拥有...", "info", url);
     const response = await request({
       url,
       method: "GET"
     });
     if (!response.ok || !response.text) {
-      await reportRequestFailure("请求失败！", response);
-      return;
+      return requestFailure(url, "游戏页面请求失败！", response, reporter);
     }
     if (isOwnedPageText(response.text)) {
-      log("游戏已拥有！", "success");
-      return;
+      reportItch(reporter, "游戏已拥有！", "success", url);
+      return { url, status: "owned" };
     }
-    await purchase(url);
+    return purchase(url, reporter);
   }
-  async function purchase(url) {
+  async function purchase(url, reporter) {
     try {
-      log("正在加载购买页面...", "info", url);
+      reportItch(reporter, "正在加载购买页面...", "info", url);
       const purchaseUrl = url.includes("/purchase") ? url : `${url}/purchase`;
       const response = await request({
         url: purchaseUrl,
         method: "GET"
       });
       if (!response.ok || !response.text) {
-        await reportRequestFailure("请求失败！", response);
-        return;
+        return requestFailure(url, "购买页面请求失败！", response, reporter);
       }
       const document2 = parseHtml(response.text);
       if (!isFreePurchasePage(document2)) {
-        log("价格不为 0, 可能活动已结束！", "error");
-        return;
+        reportItch(reporter, "价格不为 0，可能活动已结束！", "warning", url);
+        return { url, status: "expired" };
       }
       const csrfToken = inputValue(document2, '[name="csrf_token"]');
       const rewardId = inputValue(document2, '[name="reward_id"]');
       if (!csrfToken) {
-        log("获取 csrf_token 失败！", "error");
-        return;
+        reportItch(reporter, "获取 csrf_token 失败！", "error", url);
+        return { url, status: "failed", message: "Missing csrf_token" };
       }
-      await download(purchaseUrl.replace(/\/purchase.*/, ""), csrfToken, rewardId);
+      return download(purchaseUrl.replace(/\/purchase.*/, ""), csrfToken, rewardId, reporter);
     } catch (error) {
-      log("请求失败！", "error");
-      log(error);
+      const message = error instanceof Error ? error.message : String(error);
+      reportItch(reporter, "领取请求失败！", "error", `${url}: ${message}`);
+      return { url, status: "failed", message };
     }
   }
-  async function download(url, csrfToken, rewardId) {
-    log("正在请求下载页面...", "info", url);
+  async function download(url, csrfToken, rewardId, reporter) {
+    reportItch(reporter, "正在请求下载页面...", "info", url);
     const body = new URLSearchParams({ csrf_token: csrfToken });
     if (rewardId) body.set("reward_id", rewardId);
     const response = await request({
@@ -888,10 +897,9 @@ ${details}` : message);
       responseType: "json"
     });
     if (response.ok && response.data?.url) {
-      await loadDownload(response.data.url, url);
-      return;
+      return loadDownload(response.data.url, url, reporter);
     }
-    await reportRequestFailure("请求失败！", response);
+    return requestFailure(url, "下载地址请求失败！", response, reporter);
   }
   function downloadHeaders(url, referer) {
     return {
@@ -903,8 +911,8 @@ ${details}` : message);
       "Upgrade-Insecure-Requests": "1"
     };
   }
-  async function loadDownload(downloadUrl, referer) {
-    log("正在加载下载页面...");
+  async function loadDownload(downloadUrl, referer, reporter) {
+    reportItch(reporter, "正在加载下载页面...", "info", referer);
     const url = new URL(downloadUrl);
     const response = await request({
       url: url.href,
@@ -912,32 +920,33 @@ ${details}` : message);
       headers: downloadHeaders(url, referer)
     });
     if (!response.ok || !response.text) {
-      await reportRequestFailure("请求失败！", response);
-      return;
+      return requestFailure(referer, "下载页面请求失败！", response, reporter);
     }
     const document2 = parseHtml(response.text);
     const claimButton = Array.from(document2.querySelectorAll("button.button")).find((button) => /link|claim|链接/i.test(button.textContent || ""));
     const claimForm = document2.querySelector('form[action*="claim-key"]') || claimButton?.closest("form");
     if (isLinkedDownloadPage(document2)) {
-      log("领取成功！", "success");
+      reportItch(reporter, "领取成功！", "success", referer);
+      return { url: referer, status: "claimed" };
     } else if (claimForm) {
       const action = claimForm.getAttribute("action");
       const csrfToken = claimForm.querySelector('input[name="csrf_token"]')?.value || "";
       if (action && csrfToken) {
-        await claimGame(new URL(action, url.href).href, csrfToken, url.href);
+        return claimGame(new URL(action, url.href).href, csrfToken, url.href, referer, reporter);
       } else {
-        log("获取领取表单失败！", "error");
+        reportItch(reporter, "获取领取表单失败！", "error", referer);
+        return { url: referer, status: "failed", message: "Invalid claim form" };
       }
     } else if (response.response?.finalUrl?.includes("/register")) {
-      log("领取失败，请先登录！", "error");
+      reportItch(reporter, "领取失败，请先登录！", "error", referer);
+      return { url: referer, status: "login-required" };
     } else {
-      log("领取完成，结果未知！", "success");
+      reportItch(reporter, "领取完成，结果未知！", "warning", referer);
+      return { url: referer, status: "unknown" };
     }
-    const checker = window.checkItchGame;
-    if (typeof checker === "function") checker();
   }
-  async function claimGame(action, token, referer) {
-    log("正在领取游戏...");
+  async function claimGame(action, token, referer, gameUrl, reporter) {
+    reportItch(reporter, "正在领取游戏...", "info", gameUrl);
     const url = new URL(action);
     const response = await request({
       url: url.href,
@@ -952,12 +961,16 @@ ${details}` : message);
     });
     if (response.ok && response.text) {
       const document2 = parseHtml(response.text);
-      log(isLinkedDownloadPage(document2) ? "领取成功！" : "领取完成，结果未知！", "success");
+      const claimed = isLinkedDownloadPage(document2);
+      reportItch(reporter, claimed ? "领取成功！" : "领取完成，结果未知！", claimed ? "success" : "warning", gameUrl);
+      const checker = window.checkItchGame;
+      if (typeof checker === "function") checker();
+      return { url: gameUrl, status: claimed ? "claimed" : "unknown" };
     } else if (response.response?.finalUrl?.includes("/register")) {
-      log("请先登录！", "error");
-      log(response);
+      reportItch(reporter, "请先登录！", "error", gameUrl);
+      return { url: gameUrl, status: "login-required" };
     } else {
-      await reportRequestFailure("请求失败！", response);
+      return requestFailure(gameUrl, "领取请求失败！", response, reporter);
     }
   }
   function handleItchDownloadPage() {
@@ -988,55 +1001,48 @@ ${details}` : message);
     });
     buyButton.after(button);
   }
-  async function redeemItchGame(target) {
-    log("当前游戏/优惠包链接:", "info", target);
+  async function redeemItchGame(target, reporter) {
+    reportItch(reporter, "当前游戏/优惠包链接:", "info", target);
     if (BUNDLE_URL_RE.test(target)) {
-      await redeemItchBundle(target);
-      return;
+      await redeemItchBundle(target, reporter);
+      return { url: target, status: "unknown", message: "Bundle processed" };
     }
     const url = normalizeGameUrl(target);
-    if (!url) return;
-    await checkOwnedAndRedeem(url);
+    if (!url) {
+      reportItch(reporter, "无效的 itch.io 链接，已跳过", "warning", target);
+      return { url: target, status: "failed", message: "Invalid itch.io URL" };
+    }
+    return checkOwnedAndRedeem(url, reporter);
   }
 
   // src/modules/itch/bundle.ts
   var BUNDLE_URL_RE2 = /^https?:\/\/itch\.io\/s\/\d+\/.+/i;
-  function log2(message, icon = "info", details) {
-    if (typeof message !== "string") {
-      console.log(message);
-      return;
-    }
-    updateOrShowModal({ title: message, text: details, icon, className: "break-all" });
-    console.log(details ? `${message}
-${details}` : message);
-  }
   function parseBundleGames(html, baseUrl) {
     const document2 = new DOMParser().parseFromString(html, "text/html");
     const games = Array.from(document2.querySelectorAll(".game_grid_widget.promo_game_grid a.thumb_link.game_link, a.thumb_link.game_link")).map((link) => new URL(link.href || link.getAttribute("href") || "", baseUrl).href.replace(/\/$/, "")).filter((href) => /^https?:\/\/.+?\.itch\.io\/[^/?#]+$/i.test(href));
     return [...new Set(games)];
   }
-  async function getItchBundleGames(url) {
-    log2("正在获取优惠包信息...", "info", url);
+  async function getItchBundleGames(url, reporter) {
+    reportItch(reporter, "正在获取优惠包信息...", "info", url);
     const response = await request({
       url,
       method: "GET"
     });
     if (!response.ok || !response.text) {
-      log2("请求失败！", "error");
-      log2(response);
+      reportItch(reporter, "优惠包请求失败！", "error", `${url} (${response.status} ${response.statusText})`);
       return [];
     }
     if (response.text.includes("not_active_notification")) {
-      log2("活动已结束！", "error");
+      reportItch(reporter, "优惠包活动已结束！", "warning", url);
       return [];
     }
     return parseBundleGames(response.text, url);
   }
-  async function redeemItchBundle(url) {
+  async function redeemItchBundle(url, reporter) {
     if (!BUNDLE_URL_RE2.test(url)) return;
-    const games = await getItchBundleGames(url);
+    const games = await getItchBundleGames(url, reporter);
     for (const game of games) {
-      await redeemItchGame(game);
+      await redeemItchGame(game, reporter);
     }
   }
   async function redeemCurrentItchBundle() {
@@ -1050,15 +1056,11 @@ ${details}` : message);
   var GAME_LINK_RE = /^https?:\/\/.+?\.itch\.io\/[^/?#]+\/?(?:purchase)?$/i;
   var REWARD_LINK_RE = /^https?:\/\/.+?\.itch\.io\/[^/?#]+\/purchase\?[^#]*reward_id=/i;
   var BUNDLE_LINK_RE = /^https?:\/\/itch\.io\/s\/\d+\/.+/i;
-  function log3(message, icon = "info", details) {
-    updateOrShowModal({ title: message, text: details, icon, className: "break-all" });
-    console.log(details ? `${message}
-${details}` : message);
-  }
-  function normalizeHref(href) {
+  function normalizeItchHref(href, baseUrl = window.location.href) {
     try {
-      const url = new URL(href, window.location.href);
+      const url = new URL(href, baseUrl);
       url.hash = "";
+      if (/itch\.io\/(?:b|c)\//i.test(url.href)) return null;
       if (BUNDLE_LINK_RE.test(url.href) || REWARD_LINK_RE.test(url.href)) return url.href.replace(/\/$/, "");
       if (!GAME_LINK_RE.test(url.href)) return null;
       if (url.pathname.endsWith("/purchase")) {
@@ -1070,25 +1072,59 @@ ${details}` : message);
       return null;
     }
   }
-  async function expandItchLink(href) {
-    if (BUNDLE_LINK_RE.test(href)) {
-      return getItchBundleGames(href);
+  function extractItchHrefs(html, baseUrl) {
+    const parsed = new DOMParser().parseFromString(html, "text/html");
+    const links = Array.from(parsed.querySelectorAll('a[href*="itch.io"]')).map((link) => link.getAttribute("href") || link.href).map((href) => normalizeItchHref(href, baseUrl)).filter((href) => Boolean(href));
+    return [...new Set(links)];
+  }
+  async function prepareItchRedeemQueue(hrefs, reporter) {
+    const games = [];
+    const bundleCache = /* @__PURE__ */ new Map();
+    try {
+      for (const href of [...new Set(hrefs)]) {
+        reportItch(reporter, "正在处理游戏/优惠包链接", "info", href);
+        if (BUNDLE_LINK_RE.test(href)) {
+          let bundleGames = bundleCache.get(href);
+          if (!bundleGames) {
+            bundleGames = await getItchBundleGames(href, reporter);
+            bundleCache.set(href, bundleGames);
+          }
+          games.push(...bundleGames);
+        } else {
+          const normalized = normalizeItchHref(href);
+          if (normalized) games.push(normalized);
+        }
+      }
+      return [...new Set(games)];
+    } finally {
+      bundleCache.clear();
+      games.length = 0;
     }
-    const normalized = normalizeHref(href);
-    return normalized ? [normalized] : [];
+  }
+  function emptyBatchResult() {
+    return { total: 0, claimed: 0, owned: 0, expired: 0, loginRequired: 0, failed: 0, unknown: 0 };
+  }
+  async function redeemItchQueue(games, reporter, onProgress) {
+    const result = emptyBatchResult();
+    for (const [index, game] of games.entries()) {
+      const item = await redeemItchGame(game, reporter);
+      result.total += 1;
+      if (item.status === "login-required") result.loginRequired += 1;
+      else result[item.status] += 1;
+      onProgress?.(item, index + 1, games.length);
+      if (item.status === "login-required") {
+        reportItch(reporter, "检测到 itch.io 未登录，已终止剩余领取任务", "error", game);
+        break;
+      }
+    }
+    return result;
   }
   async function extractAndRedeemItchLinks() {
-    log3("正在提取链接，请稍候...");
-    const links = Array.from(document.querySelectorAll('a[href*="itch.io"]')).filter((link) => !link.classList.contains("itch-io-game-link-owned")).filter((link) => !/itch\.io\/(?:b|c)\//i.test(link.href)).map((link) => link.dataset.itchHref || link.href);
-    const games = [];
-    for (const link of links) {
-      log3("正在处理游戏/优惠包链接:", "info", link);
-      games.push(...await expandItchLink(link));
-    }
-    for (const game of [...new Set(games)]) {
-      await redeemItchGame(game);
-    }
-    log3("全部领取完成！", "success");
+    reportItch(void 0, "正在提取链接，请稍候...");
+    const links = Array.from(document.querySelectorAll('a[href*="itch.io"]')).filter((link) => !link.classList.contains("itch-io-game-link-owned")).map((link) => link.dataset.itchHref || link.href).map((href) => normalizeItchHref(href)).filter((href) => Boolean(href));
+    const queue = await prepareItchRedeemQueue(links);
+    await redeemItchQueue(queue);
+    reportItch(void 0, "全部领取完成！", "success");
   }
 
   // src/modules/itch/itchFreeListSite.json
@@ -1097,10 +1133,427 @@ ${details}` : message);
     "https://shaigrorb.github.io/freetchio/"
   ];
 
+  // src/modules/itch/autoConsole.ts
+  var CONFIG_KEY = "itchAutoClaimConfig";
+  var RUNTIME_KEY = "itchAutoClaimRuntime";
+  var MAX_LOG_ENTRIES = 300;
+  var HEARTBEAT_INTERVAL_MS = 3e4;
+  var KEEPALIVE_REQUEST_INTERVAL_MS = 4 * 6e4;
+  var DEFAULT_CONFIG = {
+    sites: [...itchFreeListSite_default],
+    intervalHours: 6,
+    keepAlive: false
+  };
+  var EMPTY_STATS = {
+    cycles: 0,
+    sourceSucceeded: 0,
+    sourceFailed: 0,
+    rawLinks: 0,
+    uniqueLinks: 0,
+    total: 0,
+    claimed: 0,
+    owned: 0,
+    expired: 0,
+    loginRequired: 0,
+    failed: 0,
+    unknown: 0
+  };
+  function normalizeConfig(value) {
+    const configuredSites = Array.isArray(value?.sites) ? value.sites.filter((site) => itchFreeListSite_default.includes(site)) : DEFAULT_CONFIG.sites;
+    const interval = Number(value?.intervalHours);
+    return {
+      sites: [...new Set(configuredSites)],
+      intervalHours: Number.isFinite(interval) && interval >= 0.1 ? interval : DEFAULT_CONFIG.intervalHours,
+      keepAlive: typeof value?.keepAlive === "boolean" ? value.keepAlive : DEFAULT_CONFIG.keepAlive
+    };
+  }
+  function loadConfig() {
+    return normalizeConfig(GM_getValue(CONFIG_KEY, {}));
+  }
+  function saveConfig(config) {
+    GM_setValue(CONFIG_KEY, {
+      sites: [...config.sites],
+      intervalHours: config.intervalHours,
+      keepAlive: config.keepAlive
+    });
+  }
+  function loadRuntime() {
+    const saved = GM_getValue(RUNTIME_KEY, {});
+    return {
+      running: saved.running === true,
+      nextRunAt: Number.isFinite(saved.nextRunAt) ? saved.nextRunAt : null,
+      lastRunAt: Number.isFinite(saved.lastRunAt) ? saved.lastRunAt : null
+    };
+  }
+  function saveRuntime(runtime) {
+    GM_setValue(RUNTIME_KEY, { ...runtime });
+  }
+  function formatTime(timestamp) {
+    if (!timestamp) return "—";
+    return new Date(timestamp).toLocaleString("zh-CN", { hour12: false });
+  }
+  function createHeartbeatWorker(onTick) {
+    try {
+      const source = `setInterval(() => postMessage('tick'), ${HEARTBEAT_INTERVAL_MS}); postMessage('tick');`;
+      const objectUrl = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
+      const worker = new Worker(objectUrl);
+      URL.revokeObjectURL(objectUrl);
+      worker.addEventListener("message", onTick);
+      return worker;
+    } catch {
+      return null;
+    }
+  }
+  var CONSOLE_CSS = `
+  :host{all:initial;display:block;min-height:100vh;color-scheme:light;font-family:Inter,"Segoe UI","Microsoft YaHei",sans-serif;color:#172033}
+  *{box-sizing:border-box}
+  button,input{font:inherit}
+  .app{min-height:100vh;background:#f3f6fb;padding:24px}
+  .shell{max-width:1180px;margin:0 auto}
+  .header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+  h1{font-size:26px;line-height:1.2;margin:0 0 6px;color:#172033}
+  .subtitle{font-size:14px;color:#667085}
+  .status{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:#fff;border:1px solid #dce3ed;font-size:13px;font-weight:700}
+  .dot{width:9px;height:9px;border-radius:50%;background:#98a2b3}.dot.running{background:#16a34a;box-shadow:0 0 0 4px #dcfce7}.dot.error{background:#dc2626}
+  .grid{display:grid;grid-template-columns:minmax(310px,0.8fr) minmax(460px,1.2fr);gap:18px;align-items:start}
+  .card{background:#fff;border:1px solid #dce3ed;border-radius:14px;box-shadow:0 8px 24px rgba(28,39,60,.06);padding:20px}
+  .card-title{font-size:16px;font-weight:750;margin:0 0 16px;color:#172033}
+  .field{margin-bottom:18px}.label{display:block;font-size:13px;font-weight:700;margin-bottom:8px;color:#344054}
+  .sites{display:grid;gap:9px}.site{display:flex;gap:9px;align-items:flex-start;padding:10px;border:1px solid #e4e9f1;border-radius:9px;background:#f9fbfd;font-size:13px;word-break:break-all}.site input{margin-top:2px}
+  .interval-row{display:flex;align-items:center;gap:9px}.interval{width:120px;border:1px solid #cfd8e5;border-radius:8px;padding:9px 10px;color:#172033}
+  .switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.switch{position:relative;width:46px;height:25px}.switch input{opacity:0;width:0;height:0}.slider{position:absolute;inset:0;background:#cbd5e1;border-radius:30px;cursor:pointer;transition:.2s}.slider:before{content:"";position:absolute;width:19px;height:19px;left:3px;top:3px;background:white;border-radius:50%;transition:.2s;box-shadow:0 1px 4px rgba(0,0,0,.25)}.switch input:checked + .slider{background:#2563eb}.switch input:checked + .slider:before{transform:translateX(21px)}
+  .hint{font-size:12px;line-height:1.55;color:#667085;margin-top:8px}
+  .browser-tip{margin-top:10px;padding:10px 11px;border:1px solid #bfdbfe;border-radius:9px;background:#eff6ff;color:#1e3a8a;font-size:12px;line-height:1.6}.browser-tip code{padding:2px 5px;border-radius:5px;background:#dbeafe;color:#1e40af;word-break:break-all}.copy-site{margin-left:7px;border:0;border-radius:6px;padding:3px 7px;background:#2563eb;color:#fff;font-size:11px;font-weight:700;cursor:pointer}
+  .actions{display:flex;gap:9px;flex-wrap:wrap}.btn{border:0;border-radius:9px;padding:10px 15px;font-weight:700;cursor:pointer}.primary{background:#2563eb;color:#fff}.primary.stop{background:#dc2626}.secondary{background:#eef2f7;color:#344054}.btn:disabled{opacity:.5;cursor:not-allowed}
+  .keepalive{margin-top:18px;border-top:1px solid #edf0f5;padding-top:15px;display:grid;grid-template-columns:1fr auto;gap:8px;font-size:12px}.keepalive span:nth-child(odd){color:#667085}.keepalive span:nth-child(even){font-weight:700;text-align:right}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}.stat{padding:12px;border-radius:10px;background:#f7f9fc;border:1px solid #e8edf4}.stat b{display:block;font-size:21px;margin-bottom:3px}.stat span{font-size:11px;color:#667085}
+  .times{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 16px;font-size:12px;color:#667085}.times b{color:#344054}
+  .log-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.log-actions{display:flex;gap:7px}.mini{border:0;border-radius:7px;background:#eef2f7;color:#344054;padding:6px 9px;font-size:12px;cursor:pointer}
+  .logs{height:480px;overflow:auto;background:#111827;border-radius:10px;padding:12px;color:#d1d5db;font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace}.log{padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);word-break:break-all}.log .time{color:#7f8ea3}.log .level{display:inline-block;width:62px;font-weight:700}.log.info .level{color:#60a5fa}.log.success .level{color:#4ade80}.log.warning .level{color:#fbbf24}.log.error .level{color:#f87171}.details{color:#aeb8c7}
+  @media(max-width:850px){.app{padding:14px}.grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.header{align-items:flex-start;flex-direction:column}.logs{height:400px}}
+`;
+  function mountItchAutoConsole() {
+    const host = document.createElement("div");
+    host.id = "redeem-helper-itch-auto-console";
+    const shadow = host.attachShadow({ mode: "open" });
+    shadow.innerHTML = `
+    <style>${CONSOLE_CSS}</style>
+    <main class="app"><div class="shell">
+      <header class="header"><div><h1>itch.io 自动领取控制台</h1><div class="subtitle">并发采集免费列表，顺序领取 itch.io 游戏</div></div><div class="status"><i class="dot"></i><span data-status>未启动</span></div></header>
+      <div class="grid">
+        <section class="card"><h2 class="card-title">参数配置</h2>
+          <div class="field"><span class="label">站点（可多选）</span><div class="sites" data-sites></div></div>
+          <label class="field"><span class="label">循环间隔</span><span class="interval-row"><input class="interval" data-interval type="number" min="0.1" step="0.1"><span>小时</span></span></label>
+          <div class="field"><div class="switch-row"><span class="label" style="margin:0">页面保活</span><label class="switch"><input data-keepalive type="checkbox"><span class="slider"></span></label></div><div class="hint">使用屏幕唤醒锁、Worker 心跳和恢复补跑尽可能避免休眠；浏览器关闭、系统休眠或强制丢弃标签页时无法保证运行。</div><div class="browser-tip">建议同时打开浏览器的“设置 → 性能”，在“始终保持这些网站处于活动状态”或“永不让这些站点进入休眠”中添加当前站点：<code data-current-site></code><button class="copy-site" data-copy-site>复制站点</button></div></div>
+          <div class="actions"><button class="btn primary" data-start>启动自动领取</button><button class="btn secondary" data-run-once>立即执行一次</button></div>
+          <div class="keepalive"><span>Wake Lock</span><span data-wake>未启用</span><span>Worker 心跳</span><span data-heartbeat>未启动</span><span>页面状态</span><span data-visibility>前台</span><span>最近心跳</span><span data-heartbeat-time>—</span><span>临时资源</span><span data-resource>已清理</span></div>
+        </section>
+        <section class="card"><div class="log-head"><h2 class="card-title" style="margin:0">运行统计</h2><span data-log-count>日志 0 / ${MAX_LOG_ENTRIES}</span></div>
+          <div class="times"><span>上次执行：<b data-last-run>—</b></span><span>下次执行：<b data-next-run>—</b></span></div>
+          <div class="stats">
+            <div class="stat"><b data-stat="cycles">0</b><span>运行轮次</span></div><div class="stat"><b data-stat="sources">0/0</b><span>来源成功/失败</span></div>
+            <div class="stat"><b data-stat="rawLinks">0</b><span>原始链接</span></div><div class="stat"><b data-stat="uniqueLinks">0</b><span>去重后</span></div>
+            <div class="stat"><b data-stat="claimed">0</b><span>新领取</span></div><div class="stat"><b data-stat="owned">0</b><span>已拥有</span></div>
+            <div class="stat"><b data-stat="expired">0</b><span>已失效</span></div><div class="stat"><b data-stat="failed">0</b><span>失败/需登录/未知</span></div>
+          </div>
+          <div class="log-head"><h2 class="card-title" style="margin:0">详细日志</h2><div class="log-actions"><button class="mini" data-clear>清空日志</button><button class="mini" data-copy>复制日志</button></div></div>
+          <div class="logs" data-logs></div>
+        </section>
+      </div>
+    </div></main>`;
+    document.body.replaceChildren(host);
+    document.body.removeAttribute("class");
+    document.body.removeAttribute("style");
+    document.body.style.margin = "0";
+    document.body.style.minWidth = "320px";
+    document.title = "itch.io 自动领取控制台";
+    let config = loadConfig();
+    let runtime = loadRuntime();
+    const stats = { ...EMPTY_STATS };
+    const logEntries = [];
+    let cycleActive = false;
+    let heartbeatWorker = null;
+    let wakeLock = null;
+    let lastKeepaliveRequestAt = 0;
+    const get = (selector) => shadow.querySelector(selector);
+    const sitesEl = get("[data-sites]");
+    const intervalEl = get("[data-interval]");
+    const keepaliveEl = get("[data-keepalive]");
+    const startEl = get("[data-start]");
+    const runOnceEl = get("[data-run-once]");
+    const logsEl = get("[data-logs]");
+    const setText = (selector, value) => {
+      get(selector).textContent = value;
+    };
+    const updateStatus = (text, active = false, error = false) => {
+      setText("[data-status]", text);
+      get(".dot").className = `dot${active ? " running" : ""}${error ? " error" : ""}`;
+    };
+    const updateRuntimeUi = () => {
+      startEl.textContent = runtime.running ? "停止自动领取" : "启动自动领取";
+      startEl.classList.toggle("stop", runtime.running);
+      setText("[data-last-run]", formatTime(runtime.lastRunAt));
+      setText("[data-next-run]", formatTime(runtime.nextRunAt));
+    };
+    const updateStats = () => {
+      setText('[data-stat="cycles"]', String(stats.cycles));
+      setText('[data-stat="sources"]', `${stats.sourceSucceeded}/${stats.sourceFailed}`);
+      setText('[data-stat="rawLinks"]', String(stats.rawLinks));
+      setText('[data-stat="uniqueLinks"]', String(stats.uniqueLinks));
+      setText('[data-stat="claimed"]', String(stats.claimed));
+      setText('[data-stat="owned"]', String(stats.owned));
+      setText('[data-stat="expired"]', String(stats.expired));
+      setText('[data-stat="failed"]', String(stats.failed + stats.loginRequired + stats.unknown));
+    };
+    const reporter = (entry) => {
+      logEntries.push(entry);
+      const row = document.createElement("div");
+      row.className = `log ${entry.level}`;
+      const time = new Date(entry.timestamp).toLocaleTimeString("zh-CN", { hour12: false });
+      row.textContent = `${time}  ${entry.level.toUpperCase().padEnd(7)} ${entry.message}${entry.details ? `  ${entry.details}` : ""}`;
+      logsEl.append(row);
+      while (logEntries.length > MAX_LOG_ENTRIES) logEntries.shift();
+      while (logsEl.childElementCount > MAX_LOG_ENTRIES) logsEl.firstElementChild?.remove();
+      setText("[data-log-count]", `日志 ${logEntries.length} / ${MAX_LOG_ENTRIES}`);
+      logsEl.scrollTop = logsEl.scrollHeight;
+    };
+    const persistConfig = () => saveConfig(config);
+    const refreshVisibility = () => setText("[data-visibility]", document.hidden ? "后台" : "前台");
+    const requestWakeLock = async () => {
+      if (!config.keepAlive || document.hidden || wakeLock && !wakeLock.released) return;
+      try {
+        const wakeApi = navigator.wakeLock;
+        if (!wakeApi) {
+          setText("[data-wake]", "浏览器不支持");
+          return;
+        }
+        wakeLock = await wakeApi.request("screen");
+        setText("[data-wake]", "已生效");
+        wakeLock.addEventListener("release", () => setText("[data-wake]", "已释放"), { once: true });
+      } catch {
+        setText("[data-wake]", "申请失败");
+      }
+    };
+    const releaseWakeLock = async () => {
+      const current = wakeLock;
+      wakeLock = null;
+      if (current && !current.released) await current.release().catch(() => void 0);
+      setText("[data-wake]", config.keepAlive ? "已释放" : "未启用");
+    };
+    const keepaliveRequest = async () => {
+      if (!runtime.running || !config.keepAlive || !config.sites.length) return;
+      if (Date.now() - lastKeepaliveRequestAt < KEEPALIVE_REQUEST_INTERVAL_MS) return;
+      lastKeepaliveRequestAt = Date.now();
+      const response = await request({ url: config.sites[0], method: "HEAD", timeout: 15e3 });
+      if (!response.ok) reporter({ timestamp: Date.now(), level: "warning", message: "保活请求未成功", details: `${response.status} ${response.statusText}` });
+    };
+    const runCycle = async (scheduled) => {
+      if (cycleActive || !config.sites.length) {
+        if (!config.sites.length) reporter({ timestamp: Date.now(), level: "warning", message: "请至少选择一个来源站点" });
+        return;
+      }
+      cycleActive = true;
+      runOnceEl.disabled = true;
+      startEl.disabled = scheduled;
+      setText("[data-resource]", "使用中");
+      updateStatus("正在采集来源站点", true);
+      reporter({ timestamp: Date.now(), level: "info", message: `开始第 ${stats.cycles + 1} 轮自动领取` });
+      let allLinks = [];
+      let queue = [];
+      let terminatedForLogin = false;
+      try {
+        const sourceResults = await Promise.all(config.sites.map(async (site) => {
+          const response = await request({ url: site, method: "GET", timeout: 3e4 });
+          if (!response.ok || !response.text) {
+            stats.sourceFailed += 1;
+            updateStats();
+            reporter({ timestamp: Date.now(), level: "error", message: "来源站点请求失败", details: `${site} (${response.status} ${response.statusText})` });
+            return [];
+          }
+          const links = extractItchHrefs(response.text, site);
+          stats.sourceSucceeded += 1;
+          stats.rawLinks += links.length;
+          updateStats();
+          reporter({ timestamp: Date.now(), level: "success", message: `来源获取成功，发现 ${links.length} 条链接`, details: site });
+          return links;
+        }));
+        allLinks = sourceResults.flat();
+        updateStatus("正在处理链接", true);
+        queue = await prepareItchRedeemQueue(allLinks, reporter);
+        stats.uniqueLinks += queue.length;
+        updateStats();
+        reporter({ timestamp: Date.now(), level: "info", message: `链接处理完成：来源链接 ${allLinks.length}，入库队列 ${queue.length}` });
+        updateStatus("正在顺序领取", true);
+        const batch = await redeemItchQueue(queue, reporter, (item, completed, total) => {
+          stats.total += 1;
+          if (item.status === "login-required") stats.loginRequired += 1;
+          else stats[item.status] += 1;
+          updateStats();
+          updateStatus(`正在顺序领取 ${completed}/${total}`, true);
+        });
+        stats.cycles += 1;
+        runtime.lastRunAt = Date.now();
+        updateStats();
+        if (batch.loginRequired > 0) {
+          terminatedForLogin = true;
+          runtime.running = false;
+          runtime.nextRunAt = null;
+          stopHeartbeat();
+          void releaseWakeLock();
+          updateStatus("请先登录，任务已终止", false, true);
+        }
+        reporter({
+          timestamp: Date.now(),
+          level: terminatedForLogin ? "error" : "success",
+          message: terminatedForLogin ? `检测到未登录，本轮及后续循环已终止；已处理 ${batch.total}/${queue.length}` : `本轮完成：领取 ${batch.claimed}，已拥有 ${batch.owned}，失败 ${batch.failed + batch.unknown}`
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        reporter({ timestamp: Date.now(), level: "error", message: "本轮执行异常", details: message });
+        updateStatus("执行异常", false, true);
+      } finally {
+        allLinks.length = 0;
+        queue.length = 0;
+        cycleActive = false;
+        runOnceEl.disabled = false;
+        startEl.disabled = false;
+        setText("[data-resource]", "已清理");
+        if (terminatedForLogin) {
+          updateStatus("请先登录，任务已终止", false, true);
+        } else if (runtime.running && scheduled) {
+          runtime.nextRunAt = Date.now() + config.intervalHours * 60 * 6e4;
+          updateStatus("等待下一轮", true);
+        } else if (!runtime.running) {
+          updateStatus("未启动");
+        }
+        saveRuntime(runtime);
+        updateRuntimeUi();
+        updateStats();
+      }
+    };
+    const heartbeat = () => {
+      const now = Date.now();
+      setText("[data-heartbeat]", "正常");
+      setText("[data-heartbeat-time]", new Date(now).toLocaleTimeString("zh-CN", { hour12: false }));
+      if (runtime.running && runtime.nextRunAt && now >= runtime.nextRunAt && !cycleActive) void runCycle(true);
+      void keepaliveRequest();
+    };
+    const startHeartbeat = () => {
+      if (heartbeatWorker) return;
+      heartbeatWorker = createHeartbeatWorker(heartbeat);
+      if (!heartbeatWorker) {
+        setText("[data-heartbeat]", "Worker 不可用");
+        return;
+      }
+      setText("[data-heartbeat]", "正常");
+    };
+    const stopHeartbeat = () => {
+      heartbeatWorker?.terminate();
+      heartbeatWorker = null;
+      setText("[data-heartbeat]", "未启动");
+      setText("[data-heartbeat-time]", "—");
+    };
+    const start = (resume) => {
+      if (!config.sites.length) {
+        reporter({ timestamp: Date.now(), level: "warning", message: "请至少选择一个来源站点" });
+        return;
+      }
+      saveConfig(config);
+      runtime.running = true;
+      startHeartbeat();
+      if (config.keepAlive) void requestWakeLock();
+      if (resume && runtime.nextRunAt && runtime.nextRunAt > Date.now()) {
+        updateStatus("等待下一轮", true);
+      } else {
+        runtime.nextRunAt = null;
+        void runCycle(true);
+      }
+      saveRuntime(runtime);
+      updateRuntimeUi();
+    };
+    const stop = () => {
+      runtime = { ...runtime, running: false, nextRunAt: null };
+      saveRuntime(runtime);
+      stopHeartbeat();
+      void releaseWakeLock();
+      updateStatus(cycleActive ? "本轮结束后停止" : "已停止");
+      updateRuntimeUi();
+    };
+    itchFreeListSite_default.forEach((site) => {
+      const label = document.createElement("label");
+      label.className = "site";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.value = site;
+      checkbox.checked = config.sites.includes(site);
+      const text = document.createElement("span");
+      text.textContent = site;
+      checkbox.addEventListener("change", () => {
+        config.sites = Array.from(sitesEl.querySelectorAll("input:checked")).map((item) => item.value);
+        persistConfig();
+      });
+      label.append(checkbox, text);
+      sitesEl.append(label);
+    });
+    intervalEl.value = String(config.intervalHours);
+    keepaliveEl.checked = config.keepAlive;
+    setText("[data-current-site]", window.location.hostname);
+    intervalEl.addEventListener("change", () => {
+      const value = Number(intervalEl.value);
+      config.intervalHours = Number.isFinite(value) && value >= 0.1 ? value : DEFAULT_CONFIG.intervalHours;
+      intervalEl.value = String(config.intervalHours);
+      persistConfig();
+      if (runtime.running && runtime.lastRunAt) {
+        runtime.nextRunAt = runtime.lastRunAt + config.intervalHours * 60 * 6e4;
+        saveRuntime(runtime);
+        updateRuntimeUi();
+      }
+    });
+    keepaliveEl.addEventListener("change", () => {
+      config.keepAlive = keepaliveEl.checked;
+      persistConfig();
+      if (config.keepAlive && runtime.running) void requestWakeLock();
+      else void releaseWakeLock();
+    });
+    startEl.addEventListener("click", () => runtime.running ? stop() : start(false));
+    runOnceEl.addEventListener("click", () => void runCycle(false));
+    get("[data-clear]").addEventListener("click", () => {
+      logEntries.length = 0;
+      logsEl.replaceChildren();
+      setText("[data-log-count]", `日志 0 / ${MAX_LOG_ENTRIES}`);
+    });
+    get("[data-copy]").addEventListener("click", () => {
+      const text = logEntries.map((entry) => `${new Date(entry.timestamp).toLocaleString("zh-CN", { hour12: false })} ${entry.level.toUpperCase()} ${entry.message}${entry.details ? ` ${entry.details}` : ""}`).join("\n");
+      GM_setClipboard(text, "text");
+    });
+    get("[data-copy-site]").addEventListener("click", () => {
+      GM_setClipboard(window.location.hostname, "text");
+      const button = get("[data-copy-site]");
+      button.textContent = "已复制";
+      window.setTimeout(() => {
+        button.textContent = "复制站点";
+      }, 1500);
+    });
+    document.addEventListener("visibilitychange", () => {
+      refreshVisibility();
+      if (!document.hidden && runtime.running && config.keepAlive) void requestWakeLock();
+      heartbeat();
+    });
+    window.addEventListener("pageshow", heartbeat);
+    window.addEventListener("focus", heartbeat);
+    window.addEventListener("beforeunload", () => saveRuntime(runtime));
+    refreshVisibility();
+    updateRuntimeUi();
+    updateStats();
+    if (runtime.running) start(true);
+  }
+
   // src/modules/itch/index.ts
   var ITCH_PROCESSED_CLASS = "redeem-itch-game";
   var ITCH_EXTRACT_BUTTON_ID = "redeem-itch-extract";
+  var ITCH_AUTO_CONSOLE_BUTTON_ID = "redeem-itch-auto-console-button";
   var ITCH_EXTRACT_BUTTON_POSITION_KEY = "itchExtractButtonPosition";
+  var ITCH_AUTO_CONSOLE_BUTTON_POSITION_KEY = "itchAutoConsoleButtonPosition";
   var EXTERNAL_HOSTS = [.../* @__PURE__ */ new Set([
     "keylol.com",
     "www.steamgifts.com",
@@ -1137,8 +1590,10 @@ ${details}` : message);
 }
 .freegames-codes .rh-claim-button{margin-top:0.5em !important;margin-left:0 !important;}
 .shaigrorb-itch-button{position:relative;height:min-content;right:39px;background-color:#16a34a;top:4px;text-decoration-line:none;color:white;font-weight:bold;border-radius:2px;padding:5px;font-size:13px;}
-#${ITCH_EXTRACT_BUTTON_ID}{position:fixed;top:16px;right:16px;z-index:2147483647;margin:0;padding:8px 16px;font-size:14px;line-height:1.5;cursor:grab;user-select:none;touch-action:none;}
-#${ITCH_EXTRACT_BUTTON_ID}.rh-dragging{cursor:grabbing;transition:none;transform:none;}
+#${ITCH_EXTRACT_BUTTON_ID},#${ITCH_AUTO_CONSOLE_BUTTON_ID}{position:fixed;right:16px;z-index:2147483647;margin:0;padding:8px 16px;font-size:14px;line-height:1.5;cursor:grab;user-select:none;touch-action:none;}
+#${ITCH_EXTRACT_BUTTON_ID}{top:16px;}
+#${ITCH_AUTO_CONSOLE_BUTTON_ID}{top:60px;background:linear-gradient(135deg,#2563eb 0%,#1d4ed8 100%);box-shadow:0 1px 3px rgba(37,99,235,0.35);}
+#${ITCH_EXTRACT_BUTTON_ID}.rh-dragging,#${ITCH_AUTO_CONSOLE_BUTTON_ID}.rh-dragging{cursor:grabbing;transition:none;transform:none;}
 `;
   var initialized3 = false;
   var observer3 = null;
@@ -1168,14 +1623,14 @@ ${details}` : message);
       return currentUrl.hostname === configuredUrl.hostname && (currentPath === configuredPath || currentPath.startsWith(`${configuredPath}/`));
     });
   }
-  function injectItchExtractButton() {
-    if (document.getElementById(ITCH_EXTRACT_BUTTON_ID)) return;
+  function injectDraggableButton(options) {
+    if (document.getElementById(options.id)) return;
     const button = document.createElement("button");
-    button.id = ITCH_EXTRACT_BUTTON_ID;
+    button.id = options.id;
     button.type = "button";
     button.className = "rh-claim-button";
-    button.textContent = "一键领取";
-    button.title = "点击一键领取，拖拽可移动位置";
+    button.textContent = options.text;
+    button.title = options.title;
     document.body.append(button);
     const clampPosition = (left, top) => ({
       left: Math.max(0, Math.min(left, window.innerWidth - button.offsetWidth)),
@@ -1187,7 +1642,7 @@ ${details}` : message);
       button.style.top = `${clamped.top}px`;
       button.style.right = "auto";
     };
-    const savedPosition = GM_getValue(ITCH_EXTRACT_BUTTON_POSITION_KEY, null);
+    const savedPosition = GM_getValue(options.positionKey, null);
     if (Number.isFinite(savedPosition?.left) && Number.isFinite(savedPosition?.top)) {
       applyPosition({ left: savedPosition.left, top: savedPosition.top });
     }
@@ -1226,7 +1681,7 @@ ${details}` : message);
       const rect = button.getBoundingClientRect();
       const position = clampPosition(rect.left, rect.top);
       applyPosition(position);
-      GM_setValue(ITCH_EXTRACT_BUTTON_POSITION_KEY, position);
+      GM_setValue(options.positionKey, position);
     };
     button.addEventListener("pointerup", finishDragging);
     button.addEventListener("pointercancel", finishDragging);
@@ -1237,11 +1692,33 @@ ${details}` : message);
         suppressClick = false;
         return;
       }
-      void runItchExtract();
+      options.onClick();
     });
     window.addEventListener("resize", () => {
       const rect = button.getBoundingClientRect();
       applyPosition({ left: rect.left, top: rect.top });
+    });
+  }
+  function injectItchActionButtons() {
+    injectDraggableButton({
+      id: ITCH_EXTRACT_BUTTON_ID,
+      text: "一键领取",
+      title: "点击一键领取，拖拽可移动位置",
+      positionKey: ITCH_EXTRACT_BUTTON_POSITION_KEY,
+      onClick: () => {
+        void runItchExtract();
+      }
+    });
+    injectDraggableButton({
+      id: ITCH_AUTO_CONSOLE_BUTTON_ID,
+      text: "自动领取控制台",
+      title: "打开自动领取控制台，拖拽可移动位置",
+      positionKey: ITCH_AUTO_CONSOLE_BUTTON_POSITION_KEY,
+      onClick: () => {
+        observer3?.disconnect();
+        observer3 = null;
+        mountItchAutoConsole();
+      }
     });
   }
   function createRedeemButton(href) {
@@ -1321,7 +1798,7 @@ ${details}` : message);
       return;
     }
     if (!isHost(EXTERNAL_HOSTS)) return;
-    if (isItchFreeListSite()) injectItchExtractButton();
+    if (isItchFreeListSite()) injectItchActionButtons();
     document.documentElement.classList.toggle("freegames-codes", window.location.hostname === "freegames.codes");
     observer3 = mountObserver(addExternalRedeemButtons);
   }

@@ -1,6 +1,18 @@
 export {};
 
 declare global {
+  const trustedTypes: {
+    createPolicy(name: string, rules: {
+      createHTML?: (input: string) => string;
+      createScript?: (input: string) => string;
+      createScriptURL?: (input: string) => string;
+    }): {
+      createHTML(input: string): string;
+      createScript(input: string): string;
+      createScriptURL(input: string): string;
+    };
+  };
+
   type Platform = 'steam' | 'ig' | 'itch' | 'gog';
 
   interface UnifiedSettings {
