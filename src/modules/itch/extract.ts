@@ -65,7 +65,7 @@ export async function prepareItchRedeemQueue(hrefs: string[], reporter?: ItchRep
 }
 
 function emptyBatchResult(): ItchBatchResult {
-  return { total: 0, claimed: 0, owned: 0, expired: 0, loginRequired: 0, failed: 0, unknown: 0 };
+  return { total: 0, claimed: 0, owned: 0, expired: 0, loginRequired: 0, failed: 0, cannot: 0, unknown: 0 };
 }
 
 export async function redeemItchQueue(
@@ -104,3 +104,12 @@ export async function extractAndRedeemItchLinks(): Promise<void> {
   await redeemItchQueue(queue);
   reportItch(undefined, '全部领取完成！', 'success');
 }
+
+// !DEBUG
+// @ts-ignore
+// unsafeWindow.extractAndRedeemItchLinks =  async (links: string[]): Promise<void> => {
+//   reportItch(undefined, '正在提取链接，请稍候...');
+//   const queue = await prepareItchRedeemQueue(links);
+//   await redeemItchQueue(queue);
+//   reportItch(undefined, '全部领取完成！', 'success');
+// }

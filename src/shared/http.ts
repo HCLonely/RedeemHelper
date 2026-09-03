@@ -29,6 +29,8 @@ export function request<T = unknown, TBody extends RequestBody = RequestBody>(op
           }
         }
       }
+      // console.log(options); // ! DEBUG
+      // console.log(response); // ! DEBUG
       resolve({
         ok: status >= 200 && status < 300,
         status,
@@ -41,6 +43,7 @@ export function request<T = unknown, TBody extends RequestBody = RequestBody>(op
     };
 
     try {
+      options.fetch = options.fetch ?? true;
       GM_xmlhttpRequest<T>({
         timeout: 30000,
         ...options,

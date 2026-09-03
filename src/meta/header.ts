@@ -23,6 +23,7 @@ export const USER_SCRIPT_HEADER = `// ==UserScript==
 // @grant           GM_getValue
 // @grant           GM_xmlhttpRequest
 // @grant           GM_cookie
+// @grant           unsafeWindow
 // @run-at          document-idle
 // @connect         www.gog.com
 // @connect         www.indiegala.com

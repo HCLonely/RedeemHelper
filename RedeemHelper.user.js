@@ -23,6 +23,7 @@
 // @grant           GM_getValue
 // @grant           GM_xmlhttpRequest
 // @grant           GM_cookie
+// @grant           unsafeWindow
 // @run-at          document-idle
 // @connect         www.gog.com
 // @connect         www.indiegala.com
@@ -61,6 +62,7 @@
         });
       };
       try {
+        options.fetch = options.fetch ?? true;
         GM_xmlhttpRequest({
           timeout: 3e4,
           ...options,
@@ -845,6 +847,12 @@ ${details}` : message);
       url,
       method: "GET"
     });
+    if (response.status === 404) {
+      if (response.text.includes("You do not have access to this page")) {
+        return requestFailure(url, "无权访问此页面，可能已被作者修改为页面不可见！", response, reporter);
+      }
+      return requestFailure(url, "游戏页面不存在！", response, reporter);
+    }
     if (!response.ok || !response.text) {
       return requestFailure(url, "游戏页面请求失败！", response, reporter);
     }
@@ -863,6 +871,10 @@ ${details}` : message);
         method: "GET"
       });
       if (!response.ok || !response.text) {
+        if (response.status === 404) {
+          reportItch(reporter, "当前游戏不可购买/领取！", "warning", url);
+          return { url, status: "cannot" };
+        }
         return requestFailure(url, "购买页面请求失败！", response, reporter);
       }
       const document2 = parseHtml(response.text);
@@ -898,6 +910,16 @@ ${details}` : message);
     });
     if (response.ok && response.data?.url) {
       return loadDownload(response.data.url, url, reporter);
+    }
+    const errorMessage = response.data?.errors?.filter((error) => typeof error === "string").join("\n");
+    if (errorMessage) {
+      if (errorMessage === "you must buy this game to download") {
+        const message = "当前游戏需购买！";
+        reportItch(reporter, message, "error", url);
+        return { url, status: "failed", message };
+      }
+      reportItch(reporter, errorMessage, "error", url);
+      return { url, status: "failed", message: errorMessage };
     }
     return requestFailure(url, "下载地址请求失败！", response, reporter);
   }
@@ -1102,7 +1124,7 @@ ${details}` : message);
     }
   }
   function emptyBatchResult() {
-    return { total: 0, claimed: 0, owned: 0, expired: 0, loginRequired: 0, failed: 0, unknown: 0 };
+    return { total: 0, claimed: 0, owned: 0, expired: 0, loginRequired: 0, failed: 0, cannot: 0, unknown: 0 };
   }
   async function redeemItchQueue(games, reporter, onProgress) {
     const result = emptyBatchResult();

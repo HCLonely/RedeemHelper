@@ -15,6 +15,7 @@ export type ItchRedeemStatus =
   | 'expired'
   | 'login-required'
   | 'failed'
+  | 'cannot'
   | 'unknown';
 
 export interface ItchRedeemResult {
@@ -30,5 +31,6 @@ export interface ItchBatchResult {
   expired: number;
   loginRequired: number;
   failed: number;
+  cannot: number;
   unknown: number;
 }
