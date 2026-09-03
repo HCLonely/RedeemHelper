@@ -6,7 +6,7 @@ declare const unsafeWindow: Window & typeof globalThis & Record<string, unknown>
 export const ITCH_LINKAGE_CODE_KEY = 'itchLinkageCode';
 
 function isItchLinkage(value: unknown): value is ItchLinkage {
-  if (typeof value !== 'object' || value === null) return false;
+  if (typeof value !== 'function' || value === null) return false;
 
   const linkage = value as Partial<ItchLinkage>;
   return typeof linkage.connected === 'boolean'
@@ -18,13 +18,13 @@ function isItchLinkage(value: unknown): value is ItchLinkage {
 }
 
 export function getItchLinkage(): ItchLinkage | null {
-  const linkageCode = GM_getValue<string>(ITCH_LINKAGE_CODE_KEY, '').trim();
+  const linkageCode = GM_getValue<string>(ITCH_LINKAGE_CODE_KEY).trim();
   const linkage = linkageCode ? unsafeWindow[linkageCode] : undefined;
   return isItchLinkage(linkage) && linkage.connected ? linkage : null;
 }
 
 export async function setItchLinkageCode(): Promise<void> {
-  const savedCode = GM_getValue<string>(ITCH_LINKAGE_CODE_KEY, '').trim();
+  const savedCode = GM_getValue<string>(ITCH_LINKAGE_CODE_KEY).trim();
   const input = document.createElement('input');
   input.type = 'text';
   input.value = savedCode;

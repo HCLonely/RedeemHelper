@@ -316,7 +316,7 @@ export async function redeemItchGame(target: string, reporter?: ItchReporter, op
   }
 
   if (!options.skipLinkedOwnershipCheck && await isItchOwned(url)) {
-    reportItch(reporter, '游戏已在联动库中拥有，已跳过！', 'success', url);
+    reportItch(reporter, '游戏已拥有，已跳过！', 'success', url);
     return { url, status: 'owned' };
   }
 

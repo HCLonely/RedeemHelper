@@ -720,17 +720,18 @@
   // src/modules/itch/linkage.ts
   var ITCH_LINKAGE_CODE_KEY = "itchLinkageCode";
   function isItchLinkage(value) {
-    if (typeof value !== "object" || value === null) return false;
+    if (typeof value !== "function" || value === null) return false;
     const linkage = value;
     return typeof linkage.connected === "boolean" && typeof linkage.has === "function" && typeof linkage.get === "function" && typeof linkage.add === "function" && typeof linkage.update === "function" && typeof linkage.removeOwned === "function";
   }
   function getItchLinkage() {
-    const linkageCode = GM_getValue(ITCH_LINKAGE_CODE_KEY, "").trim();
+    const linkageCode = GM_getValue(ITCH_LINKAGE_CODE_KEY).trim();
+    console.log(linkageCode, unsafeWindow[linkageCode]);
     const linkage = linkageCode ? unsafeWindow[linkageCode] : void 0;
     return isItchLinkage(linkage) && linkage.connected ? linkage : null;
   }
   async function setItchLinkageCode() {
-    const savedCode = GM_getValue(ITCH_LINKAGE_CODE_KEY, "").trim();
+    const savedCode = GM_getValue(ITCH_LINKAGE_CODE_KEY).trim();
     const input = document.createElement("input");
     input.type = "text";
     input.value = savedCode;
