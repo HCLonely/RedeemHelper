@@ -53,7 +53,7 @@ export async function redeemItchBundle(url: string, reporter?: ItchReporter): Pr
     if (originalTotal > 50 && completed % 30 === 0) await updateItchLinkage();
   }
 
-  if (originalTotal <= 50 || completed % 30 !== 0) await updateItchLinkage();
+  if (originalTotal <= 50 || completed === 0 || completed % 30 !== 0) await updateItchLinkage();
 }
 
 export async function redeemCurrentItchBundle(): Promise<void> {
@@ -71,5 +71,5 @@ export async function redeemCurrentItchBundle(): Promise<void> {
     if (originalTotal > 50 && completed % 30 === 0) await updateItchLinkage();
   }
 
-  if (originalTotal <= 50 || completed % 30 !== 0) await updateItchLinkage();
+  if (originalTotal <= 50 || completed === 0 || completed % 30 !== 0) await updateItchLinkage();
 }

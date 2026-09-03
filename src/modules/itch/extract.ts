@@ -98,7 +98,7 @@ export async function redeemItchQueue(
     }
   }
 
-  if (originalTotal <= 50 || completed % 30 !== 0) await updateItchLinkage();
+  if (originalTotal <= 50 || completed === 0 || completed % 30 !== 0) await updateItchLinkage();
 
   return result;
 }

@@ -23,3 +23,6 @@ assert.match(extractSource, /removeOwnedItchGames\(games\)/);
 assert.match(bundleSource, /removeOwnedItchGames\(games\)/);
 assert.match(extractSource, /completed % 30 === 0/);
 assert.match(extractSource, /updateItchLinkage\(\)/);
+const finalUpdateGuard = /originalTotal <= 50 \|\| completed === 0 \|\| completed % 30 !== 0/;
+assert.match(extractSource, finalUpdateGuard);
+assert.equal(bundleSource.match(new RegExp(finalUpdateGuard.source, 'g'))?.length, 2);

@@ -1133,7 +1133,7 @@ ${details}` : message);
       completed = index + 1;
       if (originalTotal > 50 && completed % 30 === 0) await updateItchLinkage();
     }
-    if (originalTotal <= 50 || completed % 30 !== 0) await updateItchLinkage();
+    if (originalTotal <= 50 || completed === 0 || completed % 30 !== 0) await updateItchLinkage();
   }
   async function redeemCurrentItchBundle() {
     const games = Array.from(document.querySelectorAll(".thumb_link.game_link"), (game) => game.href);
@@ -1148,7 +1148,7 @@ ${details}` : message);
       completed = index + 1;
       if (originalTotal > 50 && completed % 30 === 0) await updateItchLinkage();
     }
-    if (originalTotal <= 50 || completed % 30 !== 0) await updateItchLinkage();
+    if (originalTotal <= 50 || completed === 0 || completed % 30 !== 0) await updateItchLinkage();
   }
 
   // src/modules/itch/extract.ts
@@ -1224,7 +1224,7 @@ ${details}` : message);
         break;
       }
     }
-    if (originalTotal <= 50 || completed % 30 !== 0) await updateItchLinkage();
+    if (originalTotal <= 50 || completed === 0 || completed % 30 !== 0) await updateItchLinkage();
     return result;
   }
   async function extractAndRedeemItchLinks() {
