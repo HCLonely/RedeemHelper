@@ -731,20 +731,29 @@
   }
   async function setItchLinkageCode() {
     const savedCode = GM_getValue(ITCH_LINKAGE_CODE_KEY, "").trim();
-    const result = await Swal.fire({
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = savedCode;
+    input.placeholder = "Itch 联动服务的全局变量名";
+    input.autocomplete = "off";
+    input.setAttribute("aria-label", "Itch联动码");
+    const resultPromise = showModal({
       title: "输入Itch联动码",
       text: "请输入提供 Itch 联动服务的全局变量名。",
-      input: "text",
-      inputValue: savedCode,
-      showCancelButton: true,
-      confirmButtonText: "保存",
-      cancelButtonText: "取消"
+      content: input,
+      buttons: {
+        confirm: "保存",
+        cancel: "取消"
+      }
     });
-    if (!result.isConfirmed) return;
-    const linkageCode = typeof result.value === "string" ? result.value.trim() : "";
+    input.focus();
+    input.select();
+    const confirmed = await resultPromise;
+    if (confirmed !== true) return;
+    const linkageCode = input.value.trim();
     GM_setValue(ITCH_LINKAGE_CODE_KEY, linkageCode);
     if (linkageCode && !getItchLinkage()) {
-      await Swal.fire({
+      await showModal({
         title: "Itch联动码不可用",
         text: "未找到已连接的 Itch 联动服务，请确认联动码及对应脚本已启用。",
         icon: "error"
@@ -753,7 +762,13 @@
   }
   async function isItchOwned(game) {
     const linkage = getItchLinkage();
-    return linkage ? await linkage.has(game) : false;
+    if (!linkage) return false;
+    try {
+      return Boolean(await linkage.has(game));
+    } catch (error) {
+      reportLinkageFailure("ownership check", error);
+      return false;
+    }
   }
   async function removeOwnedItchGames(games) {
     const linkage = getItchLinkage();
@@ -767,7 +782,18 @@
   }
   async function updateItchLinkage() {
     const linkage = getItchLinkage();
-    if (linkage) await linkage.update();
+    if (!linkage) return;
+    try {
+      await linkage.update();
+    } catch (error) {
+      reportLinkageFailure("update", error);
+    }
+  }
+  function reportLinkageFailure(operation, error) {
+    try {
+      console.warn(`[RedeemHelper] Itch linkage ${operation} failed; continuing without linkage.`, error);
+    } catch {
+    }
   }
 
   // src/modules/itch/logging.ts
