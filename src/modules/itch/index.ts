@@ -4,6 +4,7 @@ import { mountItchAutoConsole } from './autoConsole';
 import { redeemCurrentItchBundle } from './bundle';
 import { extractAndRedeemItchLinks } from './extract';
 import itchFreeListSites from './itchFreeListSite.json';
+import { getItchLinkage } from './linkage';
 import { handleItchDownloadPage, injectItchPurchaseButton, redeemItchGame } from './redeem';
 
 const ITCH_PROCESSED_CLASS = 'redeem-itch-game';
@@ -302,6 +303,8 @@ function initItchHostPage(): void {
 export function initItch(): void {
   if (initialized) return;
   initialized = true;
+
+  void getItchLinkage();
 
   GM_addStyle(ITCH_CSS);
 
