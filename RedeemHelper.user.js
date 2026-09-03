@@ -775,9 +775,9 @@
     if (!linkage) return [...games];
     try {
       const unownedGames = await linkage.removeOwned([...games].map((game) => game.match(/https?:\/\/(.+?\/[^/]+)/i)?.[1]));
-      return Array.isArray(unownedGames) && unownedGames.every((game) => typeof game === "string") ? [...unownedGames] : [...games];
+      return Array.isArray(unownedGames) && unownedGames.every((game) => typeof game === "string") ? [...unownedGames].map((game) => `https://${game}`) : [...games];
     } catch {
-      return [...games].map((game) => `https://${game}`);
+      return [...games];
     }
   }
   async function updateItchLinkage() {

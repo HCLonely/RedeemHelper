@@ -78,10 +78,10 @@ export async function removeOwnedItchGames(games: string[]): Promise<string[]> {
   try {
     const unownedGames = await linkage.removeOwned([...games].map((game) => game.match(/https?:\/\/(.+?\/[^/]+)/i)?.[1]));
     return Array.isArray(unownedGames) && unownedGames.every((game) => typeof game === 'string')
-      ? [...unownedGames]
+      ? [...unownedGames].map((game) => `https://${game}`)
       : [...games];
   } catch {
-    return [...games].map((game) => `https://${game}`);
+    return [...games];
   }
 }
 
