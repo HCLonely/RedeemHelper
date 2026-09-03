@@ -1,12 +1,18 @@
 import { request, type RequestResult } from '../../shared/http';
 import { getSettings } from '../../shared/storage';
 import { redeemItchBundle } from './bundle';
+import { isItchOwned, updateItchLinkage } from './linkage';
 import { reportItch } from './logging';
 import type { ItchRedeemResult, ItchReporter } from './types';
 
 interface DownloadUrlResponse {
   url?: string;
   errors?: string[];
+}
+
+export interface ItchRedeemOptions {
+  skipLinkedOwnershipCheck?: boolean;
+  deferLinkageUpdate?: boolean;
 }
 
 type ClaimCheckWindow = Window & typeof globalThis & {
@@ -295,7 +301,7 @@ export function injectItchPurchaseButton(): void {
   buyButton.after(button);
 }
 
-export async function redeemItchGame(target: string, reporter?: ItchReporter): Promise<ItchRedeemResult> {
+export async function redeemItchGame(target: string, reporter?: ItchReporter, options: ItchRedeemOptions = {}): Promise<ItchRedeemResult> {
   reportItch(reporter, '当前游戏/优惠包链接:', 'info', target);
 
   if (BUNDLE_URL_RE.test(target)) {
@@ -309,5 +315,12 @@ export async function redeemItchGame(target: string, reporter?: ItchReporter): P
     return { url: target, status: 'failed', message: 'Invalid itch.io URL' };
   }
 
-  return checkOwnedAndRedeem(url, reporter);
+  if (!options.skipLinkedOwnershipCheck && await isItchOwned(url)) {
+    reportItch(reporter, '游戏已在联动库中拥有，已跳过！', 'success', url);
+    return { url, status: 'owned' };
+  }
+
+  const result = await checkOwnedAndRedeem(url, reporter);
+  if (!options.deferLinkageUpdate) await updateItchLinkage();
+  return result;
 }

@@ -792,6 +792,49 @@ ${details}` : message);
     GM_setValue(SETTINGS_KEY, mergeSettings(settings, getSettings()));
   }
 
+  // src/modules/itch/linkage.ts
+  var ITCH_LINKAGE_CODE_KEY = "itchLinkageCode";
+  function isItchLinkage(value) {
+    if (typeof value !== "object" || value === null) return false;
+    const linkage = value;
+    return typeof linkage.connected === "boolean" && typeof linkage.has === "function" && typeof linkage.get === "function" && typeof linkage.add === "function" && typeof linkage.update === "function" && typeof linkage.removeOwned === "function";
+  }
+  function getItchLinkage() {
+    const linkageCode = GM_getValue(ITCH_LINKAGE_CODE_KEY, "").trim();
+    const linkage = linkageCode ? unsafeWindow[linkageCode] : void 0;
+    return isItchLinkage(linkage) && linkage.connected ? linkage : null;
+  }
+  async function setItchLinkageCode() {
+    const savedCode = GM_getValue(ITCH_LINKAGE_CODE_KEY, "").trim();
+    const result = await Swal.fire({
+      title: "输入Itch联动码",
+      text: "请输入提供 Itch 联动服务的全局变量名。",
+      input: "text",
+      inputValue: savedCode,
+      showCancelButton: true,
+      confirmButtonText: "保存",
+      cancelButtonText: "取消"
+    });
+    if (!result.isConfirmed) return;
+    const linkageCode = typeof result.value === "string" ? result.value.trim() : "";
+    GM_setValue(ITCH_LINKAGE_CODE_KEY, linkageCode);
+    if (linkageCode && !getItchLinkage()) {
+      await Swal.fire({
+        title: "Itch联动码不可用",
+        text: "未找到已连接的 Itch 联动服务，请确认联动码及对应脚本已启用。",
+        icon: "error"
+      });
+    }
+  }
+  async function isItchOwned(game) {
+    const linkage = getItchLinkage();
+    return linkage ? await linkage.has(game) : false;
+  }
+  async function updateItchLinkage() {
+    const linkage = getItchLinkage();
+    if (linkage) await linkage.update();
+  }
+
   // src/modules/itch/redeem.ts
   var GAME_URL_RE = /^https?:\/\/.+?\.itch\.io\/[^/?#]+\/?(?:purchase(?:\?.*)?)?$/i;
   var REWARD_PURCHASE_URL_RE = /^https?:\/\/.+?\.itch\.io\/[^/?#]+\/purchase\?[^#]*reward_id=/i;
@@ -1023,7 +1066,7 @@ ${details}` : message);
     });
     buyButton.after(button);
   }
-  async function redeemItchGame(target, reporter) {
+  async function redeemItchGame(target, reporter, options = {}) {
     reportItch(reporter, "当前游戏/优惠包链接:", "info", target);
     if (BUNDLE_URL_RE.test(target)) {
       await redeemItchBundle(target, reporter);
@@ -1034,7 +1077,13 @@ ${details}` : message);
       reportItch(reporter, "无效的 itch.io 链接，已跳过", "warning", target);
       return { url: target, status: "failed", message: "Invalid itch.io URL" };
     }
-    return checkOwnedAndRedeem(url, reporter);
+    if (!options.skipLinkedOwnershipCheck && await isItchOwned(url)) {
+      reportItch(reporter, "游戏已在联动库中拥有，已跳过！", "success", url);
+      return { url, status: "owned" };
+    }
+    const result = await checkOwnedAndRedeem(url, reporter);
+    if (!options.deferLinkageUpdate) await updateItchLinkage();
+    return result;
   }
 
   // src/modules/itch/bundle.ts
@@ -1814,6 +1863,7 @@ ${details}` : message);
   function initItch() {
     if (initialized3) return;
     initialized3 = true;
+    void getItchLinkage();
     GM_addStyle(ITCH_CSS);
     if (isHost("itch.io")) {
       initItchHostPage();
@@ -3419,6 +3469,9 @@ table.hclonely .rh-modal-button { padding: 5px; }
     if (handlers.onItchExtract) {
       GM_registerMenuCommand("入库所有ItchIo链接", wrapMenuHandler(handlers.onItchExtract));
     }
+    if (handlers.onSetItchLinkageCode) {
+      GM_registerMenuCommand("输入Itch联动码", wrapMenuHandler(handlers.onSetItchLinkageCode));
+    }
     if (handlers.onGOGBatch) {
       GM_registerMenuCommand("领取所有GOG链接", wrapMenuHandler(handlers.onGOGBatch));
     }
@@ -3435,6 +3488,9 @@ table.hclonely .rh-modal-button { padding: 5px; }
       onSteamASF: runSteamASF,
       onIGBatch: runIGBatch,
       onItchExtract: runItchExtract,
+      onSetItchLinkageCode: () => {
+        void setItchLinkageCode();
+      },
       onGOGBatch: runGOGBatch
     });
   }
