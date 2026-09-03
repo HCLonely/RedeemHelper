@@ -717,6 +717,59 @@
     });
   }
 
+  // src/modules/itch/linkage.ts
+  var ITCH_LINKAGE_CODE_KEY = "itchLinkageCode";
+  function isItchLinkage(value) {
+    if (typeof value !== "object" || value === null) return false;
+    const linkage = value;
+    return typeof linkage.connected === "boolean" && typeof linkage.has === "function" && typeof linkage.get === "function" && typeof linkage.add === "function" && typeof linkage.update === "function" && typeof linkage.removeOwned === "function";
+  }
+  function getItchLinkage() {
+    const linkageCode = GM_getValue(ITCH_LINKAGE_CODE_KEY, "").trim();
+    const linkage = linkageCode ? unsafeWindow[linkageCode] : void 0;
+    return isItchLinkage(linkage) && linkage.connected ? linkage : null;
+  }
+  async function setItchLinkageCode() {
+    const savedCode = GM_getValue(ITCH_LINKAGE_CODE_KEY, "").trim();
+    const result = await Swal.fire({
+      title: "输入Itch联动码",
+      text: "请输入提供 Itch 联动服务的全局变量名。",
+      input: "text",
+      inputValue: savedCode,
+      showCancelButton: true,
+      confirmButtonText: "保存",
+      cancelButtonText: "取消"
+    });
+    if (!result.isConfirmed) return;
+    const linkageCode = typeof result.value === "string" ? result.value.trim() : "";
+    GM_setValue(ITCH_LINKAGE_CODE_KEY, linkageCode);
+    if (linkageCode && !getItchLinkage()) {
+      await Swal.fire({
+        title: "Itch联动码不可用",
+        text: "未找到已连接的 Itch 联动服务，请确认联动码及对应脚本已启用。",
+        icon: "error"
+      });
+    }
+  }
+  async function isItchOwned(game) {
+    const linkage = getItchLinkage();
+    return linkage ? await linkage.has(game) : false;
+  }
+  async function removeOwnedItchGames(games) {
+    const linkage = getItchLinkage();
+    if (!linkage) return [...games];
+    try {
+      const unownedGames = await linkage.removeOwned([...games]);
+      return Array.isArray(unownedGames) && unownedGames.every((game) => typeof game === "string") ? [...unownedGames] : [...games];
+    } catch {
+      return [...games];
+    }
+  }
+  async function updateItchLinkage() {
+    const linkage = getItchLinkage();
+    if (linkage) await linkage.update();
+  }
+
   // src/modules/itch/logging.ts
   var ICON_BY_LEVEL = {
     info: "info",
@@ -790,49 +843,6 @@ ${details}` : message);
   }
   function setSettings(settings) {
     GM_setValue(SETTINGS_KEY, mergeSettings(settings, getSettings()));
-  }
-
-  // src/modules/itch/linkage.ts
-  var ITCH_LINKAGE_CODE_KEY = "itchLinkageCode";
-  function isItchLinkage(value) {
-    if (typeof value !== "object" || value === null) return false;
-    const linkage = value;
-    return typeof linkage.connected === "boolean" && typeof linkage.has === "function" && typeof linkage.get === "function" && typeof linkage.add === "function" && typeof linkage.update === "function" && typeof linkage.removeOwned === "function";
-  }
-  function getItchLinkage() {
-    const linkageCode = GM_getValue(ITCH_LINKAGE_CODE_KEY, "").trim();
-    const linkage = linkageCode ? unsafeWindow[linkageCode] : void 0;
-    return isItchLinkage(linkage) && linkage.connected ? linkage : null;
-  }
-  async function setItchLinkageCode() {
-    const savedCode = GM_getValue(ITCH_LINKAGE_CODE_KEY, "").trim();
-    const result = await Swal.fire({
-      title: "输入Itch联动码",
-      text: "请输入提供 Itch 联动服务的全局变量名。",
-      input: "text",
-      inputValue: savedCode,
-      showCancelButton: true,
-      confirmButtonText: "保存",
-      cancelButtonText: "取消"
-    });
-    if (!result.isConfirmed) return;
-    const linkageCode = typeof result.value === "string" ? result.value.trim() : "";
-    GM_setValue(ITCH_LINKAGE_CODE_KEY, linkageCode);
-    if (linkageCode && !getItchLinkage()) {
-      await Swal.fire({
-        title: "Itch联动码不可用",
-        text: "未找到已连接的 Itch 联动服务，请确认联动码及对应脚本已启用。",
-        icon: "error"
-      });
-    }
-  }
-  async function isItchOwned(game) {
-    const linkage = getItchLinkage();
-    return linkage ? await linkage.has(game) : false;
-  }
-  async function updateItchLinkage() {
-    const linkage = getItchLinkage();
-    if (linkage) await linkage.update();
   }
 
   // src/modules/itch/redeem.ts
@@ -1112,15 +1122,33 @@ ${details}` : message);
   async function redeemItchBundle(url, reporter) {
     if (!BUNDLE_URL_RE2.test(url)) return;
     const games = await getItchBundleGames(url, reporter);
-    for (const game of games) {
-      await redeemItchGame(game, reporter);
+    const originalTotal = games.length;
+    const unownedGames = await removeOwnedItchGames(games);
+    let completed = 0;
+    for (const [index, game] of unownedGames.entries()) {
+      await redeemItchGame(game, reporter, {
+        skipLinkedOwnershipCheck: true,
+        deferLinkageUpdate: true
+      });
+      completed = index + 1;
+      if (originalTotal > 50 && completed % 30 === 0) await updateItchLinkage();
     }
+    if (originalTotal <= 50 || completed % 30 !== 0) await updateItchLinkage();
   }
   async function redeemCurrentItchBundle() {
-    const games = Array.from(document.querySelectorAll(".thumb_link.game_link"));
-    for (const game of games) {
-      await redeemItchGame(game.href);
+    const games = Array.from(document.querySelectorAll(".thumb_link.game_link"), (game) => game.href);
+    const originalTotal = games.length;
+    const unownedGames = await removeOwnedItchGames(games);
+    let completed = 0;
+    for (const [index, game] of unownedGames.entries()) {
+      await redeemItchGame(game, void 0, {
+        skipLinkedOwnershipCheck: true,
+        deferLinkageUpdate: true
+      });
+      completed = index + 1;
+      if (originalTotal > 50 && completed % 30 === 0) await updateItchLinkage();
     }
+    if (originalTotal <= 50 || completed % 30 !== 0) await updateItchLinkage();
   }
 
   // src/modules/itch/extract.ts
@@ -1177,17 +1205,26 @@ ${details}` : message);
   }
   async function redeemItchQueue(games, reporter, onProgress) {
     const result = emptyBatchResult();
-    for (const [index, game] of games.entries()) {
-      const item = await redeemItchGame(game, reporter);
+    const originalTotal = games.length;
+    const unownedGames = await removeOwnedItchGames(games);
+    let completed = 0;
+    for (const [index, game] of unownedGames.entries()) {
+      const item = await redeemItchGame(game, reporter, {
+        skipLinkedOwnershipCheck: true,
+        deferLinkageUpdate: true
+      });
+      completed = index + 1;
       result.total += 1;
       if (item.status === "login-required") result.loginRequired += 1;
       else result[item.status] += 1;
-      onProgress?.(item, index + 1, games.length);
+      onProgress?.(item, completed, unownedGames.length);
+      if (originalTotal > 50 && completed % 30 === 0) await updateItchLinkage();
       if (item.status === "login-required") {
         reportItch(reporter, "检测到 itch.io 未登录，已终止剩余领取任务", "error", game);
         break;
       }
     }
+    if (originalTotal <= 50 || completed % 30 !== 0) await updateItchLinkage();
     return result;
   }
   async function extractAndRedeemItchLinks() {

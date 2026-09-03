@@ -1,4 +1,5 @@
 import { request } from '../../shared/http';
+import { removeOwnedItchGames, updateItchLinkage } from './linkage';
 import { reportItch } from './logging';
 import { redeemItchGame } from './redeem';
 import type { ItchReporter } from './types';
@@ -39,14 +40,36 @@ export async function redeemItchBundle(url: string, reporter?: ItchReporter): Pr
   if (!BUNDLE_URL_RE.test(url)) return;
 
   const games = await getItchBundleGames(url, reporter);
-  for (const game of games) {
-    await redeemItchGame(game, reporter);
+  const originalTotal = games.length;
+  const unownedGames = await removeOwnedItchGames(games);
+  let completed = 0;
+
+  for (const [index, game] of unownedGames.entries()) {
+    await redeemItchGame(game, reporter, {
+      skipLinkedOwnershipCheck: true,
+      deferLinkageUpdate: true
+    });
+    completed = index + 1;
+    if (originalTotal > 50 && completed % 30 === 0) await updateItchLinkage();
   }
+
+  if (originalTotal <= 50 || completed % 30 !== 0) await updateItchLinkage();
 }
 
 export async function redeemCurrentItchBundle(): Promise<void> {
-  const games = Array.from(document.querySelectorAll<HTMLAnchorElement>('.thumb_link.game_link'));
-  for (const game of games) {
-    await redeemItchGame(game.href);
+  const games = Array.from(document.querySelectorAll<HTMLAnchorElement>('.thumb_link.game_link'), (game) => game.href);
+  const originalTotal = games.length;
+  const unownedGames = await removeOwnedItchGames(games);
+  let completed = 0;
+
+  for (const [index, game] of unownedGames.entries()) {
+    await redeemItchGame(game, undefined, {
+      skipLinkedOwnershipCheck: true,
+      deferLinkageUpdate: true
+    });
+    completed = index + 1;
+    if (originalTotal > 50 && completed % 30 === 0) await updateItchLinkage();
   }
+
+  if (originalTotal <= 50 || completed % 30 !== 0) await updateItchLinkage();
 }

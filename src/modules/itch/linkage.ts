@@ -73,7 +73,16 @@ export async function isItchOwned(game: string): Promise<boolean> {
 
 export async function removeOwnedItchGames(games: string[]): Promise<string[]> {
   const linkage = getItchLinkage();
-  return linkage ? await linkage.removeOwned(games) : games;
+  if (!linkage) return [...games];
+
+  try {
+    const unownedGames = await linkage.removeOwned([...games]);
+    return Array.isArray(unownedGames) && unownedGames.every((game) => typeof game === 'string')
+      ? [...unownedGames]
+      : [...games];
+  } catch {
+    return [...games];
+  }
 }
 
 export async function updateItchLinkage(): Promise<void> {

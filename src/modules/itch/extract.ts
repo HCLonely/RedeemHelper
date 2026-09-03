@@ -1,4 +1,5 @@
 import { getItchBundleGames } from './bundle';
+import { removeOwnedItchGames, updateItchLinkage } from './linkage';
 import { reportItch } from './logging';
 import { redeemItchGame } from './redeem';
 import type { ItchBatchResult, ItchRedeemResult, ItchReporter } from './types';
@@ -74,19 +75,30 @@ export async function redeemItchQueue(
   onProgress?: (item: ItchRedeemResult, completed: number, total: number) => void
 ): Promise<ItchBatchResult> {
   const result = emptyBatchResult();
+  const originalTotal = games.length;
+  const unownedGames = await removeOwnedItchGames(games);
+  let completed = 0;
 
-  for (const [index, game] of games.entries()) {
-    const item = await redeemItchGame(game, reporter);
+  for (const [index, game] of unownedGames.entries()) {
+    const item = await redeemItchGame(game, reporter, {
+      skipLinkedOwnershipCheck: true,
+      deferLinkageUpdate: true
+    });
+    completed = index + 1;
     result.total += 1;
     if (item.status === 'login-required') result.loginRequired += 1;
     else result[item.status] += 1;
-    onProgress?.(item, index + 1, games.length);
+    onProgress?.(item, completed, unownedGames.length);
+
+    if (originalTotal > 50 && completed % 30 === 0) await updateItchLinkage();
 
     if (item.status === 'login-required') {
       reportItch(reporter, '检测到 itch.io 未登录，已终止剩余领取任务', 'error', game);
       break;
     }
   }
+
+  if (originalTotal <= 50 || completed % 30 !== 0) await updateItchLinkage();
 
   return result;
 }
