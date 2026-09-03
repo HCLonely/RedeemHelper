@@ -1229,10 +1229,11 @@ ${details}` : message);
   function emptyBatchResult() {
     return { total: 0, claimed: 0, owned: 0, expired: 0, loginRequired: 0, failed: 0, cannot: 0, unknown: 0 };
   }
-  async function redeemItchQueue(games, reporter, onProgress) {
+  async function redeemItchQueue(games, reporter, onProgress, onPrepared) {
     const result = emptyBatchResult();
     const originalTotal = games.length;
     const unownedGames = await removeOwnedItchGames(games);
+    onPrepared?.(unownedGames.length, originalTotal - unownedGames.length);
     let completed = 0;
     for (const [index, game] of unownedGames.entries()) {
       const item = await redeemItchGame(game, reporter, {
@@ -1290,6 +1291,8 @@ ${details}` : message);
     expired: 0,
     loginRequired: 0,
     failed: 0,
+    cannot: 0,
+    pending: 0,
     unknown: 0
   };
   function normalizeConfig(value) {
@@ -1387,6 +1390,7 @@ ${details}` : message);
           <div class="stats">
             <div class="stat"><b data-stat="cycles">0</b><span>运行轮次</span></div><div class="stat"><b data-stat="sources">0/0</b><span>来源成功/失败</span></div>
             <div class="stat"><b data-stat="rawLinks">0</b><span>原始链接</span></div><div class="stat"><b data-stat="uniqueLinks">0</b><span>去重后</span></div>
+            <div class="stat"><b data-stat="pending">0</b><span>本轮待入库</span></div>
             <div class="stat"><b data-stat="claimed">0</b><span>新领取</span></div><div class="stat"><b data-stat="owned">0</b><span>已拥有</span></div>
             <div class="stat"><b data-stat="expired">0</b><span>已失效</span></div><div class="stat"><b data-stat="failed">0</b><span>失败/需登录/未知</span></div>
           </div>
@@ -1434,6 +1438,7 @@ ${details}` : message);
       setText('[data-stat="sources"]', `${stats.sourceSucceeded}/${stats.sourceFailed}`);
       setText('[data-stat="rawLinks"]', String(stats.rawLinks));
       setText('[data-stat="uniqueLinks"]', String(stats.uniqueLinks));
+      setText('[data-stat="pending"]', String(stats.pending));
       setText('[data-stat="claimed"]', String(stats.claimed));
       setText('[data-stat="owned"]', String(stats.owned));
       setText('[data-stat="expired"]', String(stats.expired));
@@ -1495,6 +1500,7 @@ ${details}` : message);
       let allLinks = [];
       let queue = [];
       let terminatedForLogin = false;
+      stats.pending = 0;
       try {
         const sourceResults = await Promise.all(config.sites.map(async (site) => {
           const response = await request({ url: site, method: "GET", timeout: 3e4 });
@@ -1524,6 +1530,14 @@ ${details}` : message);
           else stats[item.status] += 1;
           updateStats();
           updateStatus(`正在顺序领取 ${completed}/${total}`, true);
+        }, (remaining, removedOwned) => {
+          stats.pending = remaining;
+          updateStats();
+          reporter({
+            timestamp: Date.now(),
+            level: "info",
+            message: `联动过滤完成：去除已拥有 ${removedOwned} 个，实际需入库 ${remaining} 个`
+          });
         });
         stats.cycles += 1;
         runtime.lastRunAt = Date.now();

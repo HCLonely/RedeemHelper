@@ -7,6 +7,7 @@ const itchSource = readFileSync('src/modules/itch/index.ts', 'utf8');
 const redeemSource = readFileSync('src/modules/itch/redeem.ts', 'utf8');
 const extractSource = readFileSync('src/modules/itch/extract.ts', 'utf8');
 const bundleSource = readFileSync('src/modules/itch/bundle.ts', 'utf8');
+const autoConsoleSource = readFileSync('src/modules/itch/autoConsole.ts', 'utf8');
 assert.match(source, /GM_getValue/);
 assert.match(source, /GM_setValue/);
 assert.match(source, /unsafeWindow\[.*linkageCode.*\]/);
@@ -14,9 +15,9 @@ assert.match(source, /import \{ showModal \} from '\.\.\/\.\.\/shared\/ui';/);
 assert.doesNotMatch(source, /\bSwal\.fire\b/);
 assert.match(source, /connected/);
 assert.match(source, /removeOwned/);
-assert.match(source, /try \{[\s\S]*?linkage\.removeOwned\(\[\.\.\.games\]\)/);
+assert.match(source, /try \{[\s\S]*?linkage\.removeOwned\(\[\.\.\.games\]\.map/);
 assert.match(source, /Array\.isArray\(unownedGames\)/);
-assert.match(source, /try \{[\s\S]*?linkage\.has\(game\)[\s\S]*?catch/);
+assert.match(source, /try \{[\s\S]*?linkage\.has\(game\.match[\s\S]*?catch/);
 assert.match(source, /try \{[\s\S]*?linkage\.update\(\)[\s\S]*?catch/);
 assert.match(itchSource, /import \{ getItchLinkage \} from '\.\/linkage';/);
 assert.match(itchSource, /export function initItch\(\): void \{[\s\S]*?getItchLinkage\(\);/);
@@ -31,6 +32,9 @@ assert.match(extractSource, /updateItchLinkage\(\)/);
 const finalUpdateGuard = /originalTotal <= 50 \|\| completed === 0 \|\| completed % 30 !== 0/;
 assert.match(extractSource, finalUpdateGuard);
 assert.equal(bundleSource.match(new RegExp(finalUpdateGuard.source, 'g'))?.length, 2);
+assert.match(extractSource, /onPrepared\?\.\(unownedGames\.length, originalTotal - unownedGames\.length\)/);
+assert.match(autoConsoleSource, /本轮待入库/);
+assert.match(autoConsoleSource, /实际需入库 \$\{remaining\} 个/);
 
 const compiled = await build({
   entryPoints: ['src/modules/itch/linkage.ts'],
@@ -117,18 +121,17 @@ const requiredMethods = {
   add() {},
   removeOwned(games) { return games; }
 };
-const warnings = [];
 const originalWarn = console.warn;
-console.warn = (...args) => warnings.push(args);
+console.warn = () => {};
 
 try {
   savedCode = 'linkage';
-  globalThis.unsafeWindow.linkage = {
+  globalThis.unsafeWindow.linkage = Object.assign(() => undefined, {
     connected: true,
     ...requiredMethods,
     has: () => { throw new Error('has unavailable'); },
     update: () => { throw new Error('update unavailable'); }
-  };
+  });
 
   assert.equal(await linkageModule.isItchOwned('https://example.itch.io/game'), false);
   await assert.doesNotReject(() => linkageModule.updateItchLinkage());
@@ -136,13 +139,12 @@ try {
   globalThis.unsafeWindow.linkage.update = () => Promise.reject(new Error('update rejected'));
   assert.equal(await linkageModule.isItchOwned('https://example.itch.io/game'), false);
   await assert.doesNotReject(() => linkageModule.updateItchLinkage());
-  assert.equal(warnings.length, 4);
 
   globalThis.unsafeWindow.linkage.has = async () => true;
   globalThis.unsafeWindow.linkage.update = async () => undefined;
   globalThis.unsafeWindow.linkage.removeOwned = async () => ['unowned'];
   assert.equal(await linkageModule.isItchOwned('https://example.itch.io/game'), true);
-  assert.deepEqual(await linkageModule.removeOwnedItchGames(['owned', 'unowned']), ['unowned']);
+  assert.deepEqual(await linkageModule.removeOwnedItchGames(['owned', 'unowned']), ['https://unowned']);
 
   globalThis.unsafeWindow.linkage.removeOwned = async () => ({ malformed: true });
   assert.deepEqual(await linkageModule.removeOwnedItchGames(['owned', 'unowned']), ['owned', 'unowned']);

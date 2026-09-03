@@ -72,11 +72,13 @@ function emptyBatchResult(): ItchBatchResult {
 export async function redeemItchQueue(
   games: string[],
   reporter?: ItchReporter,
-  onProgress?: (item: ItchRedeemResult, completed: number, total: number) => void
+  onProgress?: (item: ItchRedeemResult, completed: number, total: number) => void,
+  onPrepared?: (remaining: number, removedOwned: number) => void
 ): Promise<ItchBatchResult> {
   const result = emptyBatchResult();
   const originalTotal = games.length;
   const unownedGames = await removeOwnedItchGames(games);
+  onPrepared?.(unownedGames.length, originalTotal - unownedGames.length);
   let completed = 0;
 
   for (const [index, game] of unownedGames.entries()) {
