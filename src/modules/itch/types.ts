@@ -9,6 +9,15 @@ export interface ItchLogEvent {
 
 export type ItchReporter = (event: ItchLogEvent) => void;
 
+export interface ItchLinkage {
+  connected: boolean;
+  has(game: string): boolean | Promise<boolean>;
+  get(...args: unknown[]): unknown | Promise<unknown>;
+  add(...args: unknown[]): unknown | Promise<unknown>;
+  update(): void | Promise<void>;
+  removeOwned(games: string[]): string[] | Promise<string[]>;
+}
+
 export type ItchRedeemStatus =
   | 'claimed'
   | 'owned'
