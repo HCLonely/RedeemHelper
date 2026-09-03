@@ -64,7 +64,7 @@ export async function isItchOwned(game: string): Promise<boolean> {
   if (!linkage) return false;
 
   try {
-    return Boolean(await linkage.has(game));
+    return Boolean(await linkage.has(game.match(/https?:\/\/(.*?\/.*?)\//i)?.[1]));
   } catch (error) {
     reportLinkageFailure('ownership check', error);
     return false;
@@ -76,12 +76,12 @@ export async function removeOwnedItchGames(games: string[]): Promise<string[]> {
   if (!linkage) return [...games];
 
   try {
-    const unownedGames = await linkage.removeOwned([...games]);
+    const unownedGames = await linkage.removeOwned([...games].map((game) => game.match(/https?:\/\/(.*?\/.*?)\//i)?.[1]));
     return Array.isArray(unownedGames) && unownedGames.every((game) => typeof game === 'string')
       ? [...unownedGames]
       : [...games];
   } catch {
-    return [...games];
+    return [...games].map((game) => `https://${game}`);
   }
 }
 

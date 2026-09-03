@@ -726,7 +726,6 @@
   }
   function getItchLinkage() {
     const linkageCode = GM_getValue(ITCH_LINKAGE_CODE_KEY).trim();
-    console.log(linkageCode, unsafeWindow[linkageCode]);
     const linkage = linkageCode ? unsafeWindow[linkageCode] : void 0;
     return isItchLinkage(linkage) && linkage.connected ? linkage : null;
   }
@@ -1115,7 +1114,7 @@ ${details}` : message);
       return { url: target, status: "failed", message: "Invalid itch.io URL" };
     }
     if (!options.skipLinkedOwnershipCheck && await isItchOwned(url)) {
-      reportItch(reporter, "游戏已在联动库中拥有，已跳过！", "success", url);
+      reportItch(reporter, "游戏已拥有，已跳过！", "success", url);
       return { url, status: "owned" };
     }
     const result = await checkOwnedAndRedeem(url, reporter);
