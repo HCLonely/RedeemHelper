@@ -19,6 +19,7 @@
   - 支持 bundle 页面“后台领取”
   - 菜单支持“提取所有链接”并批量尝试领取
   - 免费列表站点支持自动领取控制台，可按指定间隔循环采集并顺序领取
+  - 可联动 [Game-Library-check](https://github.com/HCLonely/Game-library-check)，跳过已拥有游戏并在领取后更新 itch.io 游戏库缓存
 
 ## 安装方式
 
@@ -39,6 +40,7 @@
 - `执行ASF指令`
 - `入库所有IndieGala链接`
 - `入库所有ItchIo链接`
+- `输入Itch联动码`（安装 Game-Library-check 后可用）
 
 ### 2) Steam 使用
 
@@ -73,6 +75,17 @@
 - 在 itch bundle 页面会出现“后台领取”按钮。
 - 使用菜单 `入库所有ItchIo链接` 可从当前页面提取 itch 链接并尝试批量领取。
 - 在内置免费列表站点点击“自动领取控制台”，可选择采集站点、循环间隔和页面保活选项；控制台会并发采集来源并顺序领取。
+
+### 6) Itch 联动码（Game-Library-check）
+
+安装并启用 [Game-Library-check](https://github.com/HCLonely/Game-library-check) 后，RedeemHelper 可使用其 itch.io 游戏库：领取单个游戏、批量链接或 bundle 时会跳过已拥有的游戏，并在领取完成后更新游戏库缓存。
+
+1. 登录 itch.io，并在 Game-Library-check 菜单选择“更新游戏库”，获取 itch.io 游戏库数据。
+2. 在 Game-Library-check 菜单选择“生成Itch联动码”，复制弹窗中的联动码。
+3. 在 RedeemHelper 菜单选择“输入Itch联动码”，粘贴后保存。
+4. 保持两个脚本启用；如提示联动码不可用，请刷新页面，并确认两个脚本均已更新至支持联动的版本。
+
+联动码重新生成后，需要在 RedeemHelper 中重新输入新码。
 
 ## 常见问题
 
