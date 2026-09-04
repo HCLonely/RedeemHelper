@@ -1406,7 +1406,7 @@ ${details}` : message);
           <div class="stats">
             <div class="stat"><b data-stat="cycles">0</b><span>运行轮次</span></div><div class="stat"><b data-stat="sources">0/0</b><span>来源成功/失败</span></div>
             <div class="stat"><b data-stat="rawLinks">0</b><span>原始链接</span></div><div class="stat"><b data-stat="uniqueLinks">0</b><span>去重后</span></div>
-            <div class="stat"><b data-stat="pending">0</b><span>本轮待入库（去除已拥有，需配合<a href="https://github.com/HCLonely/Game-library-check" targen="_blank">游戏库检测脚本</a>）</span></div>
+            <div class="stat"><b data-stat="pending">0</b><span>本轮待入库（去除已拥有，需配合<a href="https://github.com/HCLonely/Game-library-check" target="_blank">游戏库检测脚本</a>）</span></div>
             <div class="stat"><b data-stat="claimed">0</b><span>新领取</span></div><div class="stat"><b data-stat="owned">0</b><span>已拥有</span></div>
             <div class="stat"><b data-stat="expired">0</b><span>已失效</span></div><div class="stat"><b data-stat="failed">0</b><span>失败/需登录/未知</span></div>
           </div>
