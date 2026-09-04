@@ -1,7 +1,7 @@
 import { isHost } from '../../shared/dom';
+import { exposeInlineAction, setInlineAction } from '../../shared/inlineAction';
 import { mountObserver } from '../../shared/observer';
 import { mountItchAutoConsole } from './autoConsole';
-import { redeemCurrentItchBundle } from './bundle';
 import { extractAndRedeemItchLinks } from './extract';
 import itchFreeListSites from './itchFreeListSite.json';
 import { getItchLinkage } from './linkage';
@@ -26,30 +26,37 @@ const ITCH_CSS = `
 .rh-modal.break-all .rh-modal-title{word-wrap:break-word;word-break:break-all;}
 .rh-claim-button{
   display:inline-flex;align-items:center;gap:0.25em;
-  padding:0.15em 0.7em;
-  background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);
+  box-sizing:border-box;height:inherit;align-self:stretch;padding:0 0.85em;
+  background:linear-gradient(135deg,#10b981 0%,#047857 100%);
   color:#ffffff !important;
   font-weight:600;font-size:0.85em;line-height:1.35;
-  border:none;border-radius:0.35em;
+  border:1px solid rgba(5,150,105,.85);border-radius:0.5em;
   cursor:pointer;text-decoration:none !important;
-  box-shadow:0 1px 3px rgba(22,163,74,0.35);
-  transition:all 0.2s ease;
+  box-shadow:0 2px 5px rgba(4,120,87,.28),inset 0 1px 0 rgba(255,255,255,.16);
+  transition:transform 0.2s ease,box-shadow 0.2s ease,filter 0.2s ease;
   vertical-align:middle;
   white-space:nowrap;
   margin-left:0.5em;
 }
 .rh-claim-button:hover{
-  background:linear-gradient(135deg,#16a34a 0%,#15803d 100%);
-  box-shadow:0 2px 8px rgba(22,163,74,0.45);
+  background:linear-gradient(135deg,#14b8a6 0%,#047857 100%);
+  box-shadow:0 5px 12px rgba(4,120,87,.34),inset 0 1px 0 rgba(255,255,255,.18);
   transform:translateY(-1px);
   color:#ffffff !important;text-decoration:none !important;
 }
 .rh-claim-button:active{
   transform:translateY(0);
-  box-shadow:0 1px 2px rgba(22,163,74,0.2);
+  box-shadow:0 1px 3px rgba(4,120,87,.28);
 }
+.rh-claim-button:focus-visible{outline:3px solid rgba(16,185,129,.55);outline-offset:2px;}
+@media (prefers-reduced-motion:reduce){.rh-claim-button{transition:none;}}
 .freegames-codes .rh-claim-button{margin-top:0.5em !important;margin-left:0 !important;}
-.shaigrorb-itch-button{position:relative;height:min-content;right:39px;background-color:#16a34a;top:4px;text-decoration-line:none;color:white;font-weight:bold;border-radius:2px;padding:5px;font-size:13px;}
+.shaigrorb-itch-button{position:relative;height:min-content;right:39px;top:4px;margin-left:0;padding:5px 10px;font-size:13px;}
+#redeem-itch-io,.redeem-itch-purchase{box-sizing:border-box;height:inherit;border:1px solid rgba(5,150,105,.85);border-radius:8px;background:linear-gradient(135deg,#10b981 0%,#047857 100%);box-shadow:0 2px 5px rgba(4,120,87,.28),inset 0 1px 0 rgba(255,255,255,.16);transition:transform .18s ease,box-shadow .18s ease,filter .18s ease;}
+#redeem-itch-io:hover,.redeem-itch-purchase:hover{filter:brightness(1.07) saturate(1.06);transform:translateY(-1px);box-shadow:0 5px 12px rgba(4,120,87,.34),inset 0 1px 0 rgba(255,255,255,.18);}
+#redeem-itch-io:active,.redeem-itch-purchase:active{transform:translateY(0);box-shadow:0 1px 3px rgba(4,120,87,.28);}
+#redeem-itch-io:focus-visible,.redeem-itch-purchase:focus-visible{outline:3px solid rgba(16,185,129,.55);outline-offset:2px;}
+@media (prefers-reduced-motion:reduce){#redeem-itch-io,.redeem-itch-purchase{transition:none;}}
 #${ITCH_EXTRACT_BUTTON_ID},#${ITCH_AUTO_CONSOLE_BUTTON_ID}{position:fixed;right:16px;z-index:2147483647;margin:0;padding:8px 16px;font-size:14px;line-height:1.5;cursor:grab;user-select:none;touch-action:none;}
 #${ITCH_EXTRACT_BUTTON_ID}{top:16px;}
 #${ITCH_AUTO_CONSOLE_BUTTON_ID}{top:60px;background:linear-gradient(135deg,#2563eb 0%,#1d4ed8 100%);box-shadow:0 1px 3px rgba(37,99,235,0.35);}
@@ -58,6 +65,9 @@ const ITCH_CSS = `
 
 let initialized = false;
 let observer: MutationObserver | null = null;
+const redeemItchAction = exposeInlineAction((element) => {
+  void redeemItchGame(element.dataset.targetUrl || '');
+});
 
 function isDownloadPage(url: string): boolean {
   return /^https?:\/\/.+\.itch\.io\/[\w-]+\/download(?:\/.*|\?.*)?$/i.test(url);
@@ -221,11 +231,9 @@ function injectItchActionButtons(): void {
 function createRedeemButton(href: string): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
-  button.dataset.itchHref = href;
+  button.dataset.targetUrl = href;
+  setInlineAction(button, redeemItchAction);
   button.textContent = '领取';
-  button.addEventListener('click', () => {
-    void redeemItchGame(href);
-  });
 
   if (window.location.hostname === 'freegames.codes') {
     button.className = 'details__buy rh-claim-button';
@@ -260,14 +268,13 @@ function injectBundleButton(): void {
   const button = document.createElement('button');
   button.id = 'redeem-itch-io';
   button.className = 'button';
+  button.dataset.targetUrl = window.location.href;
+  setInlineAction(button, redeemItchAction);
   button.textContent = '后台领取';
-  button.addEventListener('click', () => {
-    void redeemCurrentItchBundle();
-  });
 
   const buyRowButton = document.querySelector('.promotion_buy_row .buy_game_btn');
   if (buyRowButton) {
-    button.setAttribute('style', 'font-size:18px;letter-spacing:0.025em;line-height:36px;height:40px;padding:0 20px;margin:0 16px');
+    button.setAttribute('style', 'font-size:18px;letter-spacing:0.025em;padding:0 20px;margin:0 16px');
     buyRowButton.after(button);
     return;
   }
@@ -277,7 +284,7 @@ function injectBundleButton(): void {
 
   const wrapper = document.createElement('div');
   wrapper.style.width = '100%';
-  button.setAttribute('style', 'font-size:18px;letter-spacing:0.025em;line-height:36px;padding:0 20px;margin:10px 30%;width:40%;');
+  button.setAttribute('style', 'font-size:18px;letter-spacing:0.025em;padding:0 20px;margin:10px 30%;width:40%;');
   wrapper.append(button);
   countdownRow.prepend(wrapper);
 }

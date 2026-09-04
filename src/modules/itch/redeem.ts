@@ -1,4 +1,5 @@
 import { request, type RequestResult } from '../../shared/http';
+import { exposeInlineAction, setInlineAction } from '../../shared/inlineAction';
 import { getSettings } from '../../shared/storage';
 import { redeemItchBundle } from './bundle';
 import { isItchOwned, updateItchLinkage } from './linkage';
@@ -22,6 +23,9 @@ type ClaimCheckWindow = Window & typeof globalThis & {
 const GAME_URL_RE = /^https?:\/\/.+?\.itch\.io\/[^/?#]+\/?(?:purchase(?:\?.*)?)?$/i;
 const REWARD_PURCHASE_URL_RE = /^https?:\/\/.+?\.itch\.io\/[^/?#]+\/purchase\?[^#]*reward_id=/i;
 const BUNDLE_URL_RE = /^https?:\/\/itch\.io\/s\/\d+\/.+/i;
+const redeemItchAction = exposeInlineAction((element) => {
+  void redeemItchGame(element.dataset.targetUrl || '');
+});
 
 function parseHtml(html: string): Document {
   return new DOMParser().parseFromString(html, 'text/html');
@@ -292,11 +296,9 @@ export function injectItchPurchaseButton(): void {
   button.type = 'button';
   button.className = 'button redeem-itch-purchase';
   button.title = '仅支持免费游戏';
-  button.dataset.itchHref = buyButton.href;
+  button.dataset.targetUrl = buyButton.href;
+  setInlineAction(button, redeemItchAction);
   button.textContent = '后台领取';
-  button.addEventListener('click', () => {
-    void redeemItchGame(button.dataset.itchHref || buyButton.href);
-  });
 
   buyButton.after(button);
 }

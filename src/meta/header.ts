@@ -32,5 +32,6 @@ export const USER_SCRIPT_HEADER = `// ==UserScript==
 // @connect         login.steampowered.com
 // @connect         itchclaim.tmbpeter.com
 // @connect         shaigrorb.github.io
+// @connect         freebies.indiegala.com
 // @connect         *
 // ==/UserScript==`;

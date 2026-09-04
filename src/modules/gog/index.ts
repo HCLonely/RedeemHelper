@@ -1,5 +1,6 @@
 import { request } from '../../shared/http';
 import { mountObserver } from '../../shared/observer';
+import { exposeInlineAction, setInlineAction } from '../../shared/inlineAction';
 import { showModal, updateOrShowModal } from '../../shared/ui';
 
 const GOG_BUTTON_CLASS = 'gog-claim-button';
@@ -7,32 +8,37 @@ const GOG_PROCESSED_CLASS = 'gog-claimed';
 const GOG_CSS = `
 .rh-claim-button{
   display:inline-flex;align-items:center;gap:0.25em;
-  padding:0.15em 0.7em;
-  background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);
+  box-sizing:border-box;height:inherit;align-self:stretch;padding:0 0.85em;
+  background:linear-gradient(135deg,#10b981 0%,#047857 100%);
   color:#ffffff !important;
   font-weight:600;font-size:0.85em;line-height:1.35;
-  border:none;border-radius:0.35em;
+  border:1px solid rgba(5,150,105,.85);border-radius:0.5em;
   cursor:pointer;text-decoration:none !important;
-  box-shadow:0 1px 3px rgba(22,163,74,0.35);
-  transition:all 0.2s ease;
+  box-shadow:0 2px 5px rgba(4,120,87,.28),inset 0 1px 0 rgba(255,255,255,.16);
+  transition:transform 0.2s ease,box-shadow 0.2s ease,filter 0.2s ease;
   vertical-align:middle;
   white-space:nowrap;
   margin-left:0.5em;
 }
 .rh-claim-button:hover{
-  background:linear-gradient(135deg,#16a34a 0%,#15803d 100%);
-  box-shadow:0 2px 8px rgba(22,163,74,0.45);
+  background:linear-gradient(135deg,#14b8a6 0%,#047857 100%);
+  box-shadow:0 5px 12px rgba(4,120,87,.34),inset 0 1px 0 rgba(255,255,255,.18);
   transform:translateY(-1px);
   color:#ffffff !important;text-decoration:none !important;
 }
 .rh-claim-button:active{
   transform:translateY(0);
-  box-shadow:0 1px 2px rgba(22,163,74,0.2);
+  box-shadow:0 1px 3px rgba(4,120,87,.28);
 }
+.rh-claim-button:focus-visible{outline:3px solid rgba(16,185,129,.55);outline-offset:2px;}
+@media (prefers-reduced-motion:reduce){.rh-claim-button{transition:none;}}
 `;
 
 let initialized = false;
 let observer: MutationObserver | null = null;
+const claimGOGAction = exposeInlineAction(() => {
+  void claimGOGGiveaway('https://www.gog.com/giveaway/claim');
+});
 
 interface GOGClaimResponse {
   message?: string;
@@ -56,10 +62,8 @@ function addButtons(): void {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = `rh-claim-button ${GOG_BUTTON_CLASS}`;
+    setInlineAction(button, claimGOGAction);
     button.textContent = '领取';
-    button.addEventListener('click', () => {
-      void claimGOGGiveaway('https://www.gog.com/giveaway/claim');
-    });
 
     link.after(button);
   }
