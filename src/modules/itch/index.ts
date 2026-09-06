@@ -2,6 +2,7 @@ import { isHost } from '../../shared/dom';
 import { exposeInlineAction, setInlineAction } from '../../shared/inlineAction';
 import { mountObserver } from '../../shared/observer';
 import { mountItchAutoConsole } from './autoConsole';
+import { redeemCurrentItchBundle } from './bundle';
 import { extractAndRedeemItchLinks } from './extract';
 import itchFreeListSites from './itchFreeListSite.json';
 import { getItchLinkage } from './linkage';
@@ -68,6 +69,9 @@ let observer: MutationObserver | null = null;
 const redeemItchAction = exposeInlineAction((element) => {
   void redeemItchGame(element.dataset.targetUrl || '');
 });
+const redeemItchBundleAction = exposeInlineAction((element) => {
+  void redeemCurrentItchBundle();
+});
 
 function isDownloadPage(url: string): boolean {
   return /^https?:\/\/.+\.itch\.io\/[\w-]+\/download(?:\/.*|\?.*)?$/i.test(url);
@@ -79,6 +83,10 @@ function isPurchasePage(url: string): boolean {
 
 function isBundlePage(url: string): boolean {
   return /^https?:\/\/itch\.io\/s\/\d+\/.+/i.test(url);
+}
+
+function isGamePage(url: string): boolean {
+  return /^https?:\/\/.+?\.itch\.io\/[^/]+$/i.test(url);
 }
 
 function isEligibleItchHref(href: string): boolean {
@@ -268,13 +276,13 @@ function injectBundleButton(): void {
   const button = document.createElement('button');
   button.id = 'redeem-itch-io';
   button.className = 'button';
-  button.dataset.targetUrl = window.location.href;
-  setInlineAction(button, redeemItchAction);
+  // button.dataset.targetUrl = window.location.href;
+  setInlineAction(button, redeemItchBundleAction);
   button.textContent = '后台领取';
 
   const buyRowButton = document.querySelector('.promotion_buy_row .buy_game_btn');
   if (buyRowButton) {
-    button.setAttribute('style', 'font-size:18px;letter-spacing:0.025em;padding:0 20px;margin:0 16px');
+    button.setAttribute('style', 'font-size:15px;letter-spacing:0.025em;padding:0 5px;margin:0 5px');
     buyRowButton.after(button);
     return;
   }
@@ -284,9 +292,30 @@ function injectBundleButton(): void {
 
   const wrapper = document.createElement('div');
   wrapper.style.width = '100%';
-  button.setAttribute('style', 'font-size:18px;letter-spacing:0.025em;padding:0 20px;margin:10px 30%;width:40%;');
+  button.setAttribute('style', 'font-size:15px;letter-spacing:0.025em;padding:0 5px;margin:5px 30%;width:40%;');
   wrapper.append(button);
   countdownRow.prepend(wrapper);
+}
+
+
+function injectGameButton(): void {
+  if (document.querySelector('#redeem-itch-io')) return;
+
+  const button = document.createElement('button');
+  button.id = 'redeem-itch-io';
+  button.className = 'button';
+  button.dataset.targetUrl = window.location.href;
+  setInlineAction(button, redeemItchAction);
+  button.textContent = '后台领取';
+
+  const buyRowButton = document.querySelectorAll('.buy_row .buy_btn');
+  if (buyRowButton.length > 0) {
+    buyRowButton.forEach((rowButton) => {
+      button.setAttribute('style', 'font-size:15px;letter-spacing:0.025em;padding:0 5px;margin:0 5px');
+      rowButton.after(button);
+    });
+    return;
+  }
 }
 
 function initItchHostPage(): void {
@@ -304,6 +333,11 @@ function initItchHostPage(): void {
 
   if (isBundlePage(url)) {
     injectBundleButton();
+    return;
+  }
+
+  if (isGamePage(url)) {
+    injectGameButton();
   }
 }
 

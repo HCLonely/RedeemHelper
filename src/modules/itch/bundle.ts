@@ -60,6 +60,10 @@ export async function redeemCurrentItchBundle(): Promise<void> {
   const games = Array.from(document.querySelectorAll<HTMLAnchorElement>('.thumb_link.game_link'), (game) => game.href);
   const originalTotal = games.length;
   const unownedGames = await removeOwnedItchGames(games);
+  if (unownedGames.length === 0) {
+    reportItch(undefined, '所有游戏都已拥有！', 'success');
+    return;
+  }
   let completed = 0;
 
   for (const [index, game] of unownedGames.entries()) {

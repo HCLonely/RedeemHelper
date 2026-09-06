@@ -4,7 +4,7 @@
 // @author          HCLonely
 // @description     统一的游戏 Key 提取与领取辅助脚本，聚合了 Steam / IndieGala / itch.io。
 // @description:en  Unified helper for extracting and redeeming game keys.
-// @version         4.1.1
+// @version         4.1.2
 // @supportURL      https://github.com/HCLonely/RedeemHelper/issues
 // @homepageURL     https://github.com/HCLonely/RedeemHelper
 // @updateURL       https://github.com/HCLonely/RedeemHelper/blob/main/RedeemHelper.user.js?raw=true
@@ -1192,6 +1192,25 @@ ${details}` : message);
     }
     if (originalTotal <= 50 || completed === 0 || completed % 30 !== 0) await updateItchLinkage();
   }
+  async function redeemCurrentItchBundle() {
+    const games = Array.from(document.querySelectorAll(".thumb_link.game_link"), (game) => game.href);
+    const originalTotal = games.length;
+    const unownedGames = await removeOwnedItchGames(games);
+    if (unownedGames.length === 0) {
+      reportItch(void 0, "所有游戏都已拥有！", "success");
+      return;
+    }
+    let completed = 0;
+    for (const [index, game] of unownedGames.entries()) {
+      await redeemItchGame(game, void 0, {
+        skipLinkedOwnershipCheck: true,
+        deferLinkageUpdate: true
+      });
+      completed = index + 1;
+      if (originalTotal > 50 && completed % 30 === 0) await updateItchLinkage();
+    }
+    if (originalTotal <= 50 || completed === 0 || completed % 30 !== 0) await updateItchLinkage();
+  }
 
   // src/modules/itch/extract.ts
   var GAME_LINK_RE = /^https?:\/\/.+?\.itch\.io\/[^/?#]+\/?(?:purchase)?$/i;
@@ -1771,6 +1790,9 @@ ${details}` : message);
   var redeemItchAction2 = exposeInlineAction((element) => {
     void redeemItchGame(element.dataset.targetUrl || "");
   });
+  var redeemItchBundleAction = exposeInlineAction((element) => {
+    void redeemCurrentItchBundle();
+  });
   function isDownloadPage(url) {
     return /^https?:\/\/.+\.itch\.io\/[\w-]+\/download(?:\/.*|\?.*)?$/i.test(url);
   }
@@ -1779,6 +1801,9 @@ ${details}` : message);
   }
   function isBundlePage(url) {
     return /^https?:\/\/itch\.io\/s\/\d+\/.+/i.test(url);
+  }
+  function isGamePage(url) {
+    return /^https?:\/\/.+?\.itch\.io\/[^/]+$/i.test(url);
   }
   function isEligibleItchHref(href) {
     try {
@@ -1929,12 +1954,11 @@ ${details}` : message);
     const button = document.createElement("button");
     button.id = "redeem-itch-io";
     button.className = "button";
-    button.dataset.targetUrl = window.location.href;
-    setInlineAction(button, redeemItchAction2);
+    setInlineAction(button, redeemItchBundleAction);
     button.textContent = "后台领取";
     const buyRowButton = document.querySelector(".promotion_buy_row .buy_game_btn");
     if (buyRowButton) {
-      button.setAttribute("style", "font-size:18px;letter-spacing:0.025em;padding:0 20px;margin:0 16px");
+      button.setAttribute("style", "font-size:15px;letter-spacing:0.025em;padding:0 5px;margin:0 5px");
       buyRowButton.after(button);
       return;
     }
@@ -1942,9 +1966,26 @@ ${details}` : message);
     if (!countdownRow) return;
     const wrapper = document.createElement("div");
     wrapper.style.width = "100%";
-    button.setAttribute("style", "font-size:18px;letter-spacing:0.025em;padding:0 20px;margin:10px 30%;width:40%;");
+    button.setAttribute("style", "font-size:15px;letter-spacing:0.025em;padding:0 5px;margin:5px 30%;width:40%;");
     wrapper.append(button);
     countdownRow.prepend(wrapper);
+  }
+  function injectGameButton() {
+    if (document.querySelector("#redeem-itch-io")) return;
+    const button = document.createElement("button");
+    button.id = "redeem-itch-io";
+    button.className = "button";
+    button.dataset.targetUrl = window.location.href;
+    setInlineAction(button, redeemItchAction2);
+    button.textContent = "后台领取";
+    const buyRowButton = document.querySelectorAll(".buy_row .buy_btn");
+    if (buyRowButton.length > 0) {
+      buyRowButton.forEach((rowButton) => {
+        button.setAttribute("style", "font-size:15px;letter-spacing:0.025em;padding:0 5px;margin:0 5px");
+        rowButton.after(button);
+      });
+      return;
+    }
   }
   function initItchHostPage() {
     const url = window.location.href;
@@ -1958,6 +1999,10 @@ ${details}` : message);
     }
     if (isBundlePage(url)) {
       injectBundleButton();
+      return;
+    }
+    if (isGamePage(url)) {
+      injectGameButton();
     }
   }
   function initItch() {
