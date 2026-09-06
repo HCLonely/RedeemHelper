@@ -9,7 +9,6 @@ import { getItchLinkage } from './linkage';
 import { handleItchDownloadPage, injectItchPurchaseButton, redeemItchGame } from './redeem';
 
 const ITCH_PROCESSED_CLASS = 'redeem-itch-game';
-const ITCH_BUTTON_CLASS = 'redeem-itch-button';
 const ITCH_EXTRACT_BUTTON_ID = 'redeem-itch-extract';
 const ITCH_AUTO_CONSOLE_BUTTON_ID = 'redeem-itch-auto-console-button';
 const ITCH_EXTRACT_BUTTON_POSITION_KEY = 'itchExtractButtonPosition';
@@ -69,7 +68,7 @@ let observer: MutationObserver | null = null;
 const redeemItchAction = exposeInlineAction((element) => {
   void redeemItchGame(element.dataset.targetUrl || '');
 });
-const redeemItchBundleAction = exposeInlineAction((element) => {
+const redeemItchBundleAction = exposeInlineAction(() => {
   void redeemCurrentItchBundle();
 });
 

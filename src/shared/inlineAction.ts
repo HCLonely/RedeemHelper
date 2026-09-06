@@ -7,7 +7,7 @@ type InlineAction = (element: HTMLElement) => void;
  * A fresh name prevents collisions with both the page and earlier script loads.
  */
 export function exposeInlineAction(action: InlineAction): string {
-  let name = '';
+  let name: string;
 
   do {
     name = `f${crypto.getRandomValues(new Uint32Array(2)).join('')}`;

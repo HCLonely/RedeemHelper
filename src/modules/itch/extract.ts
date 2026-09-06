@@ -120,7 +120,6 @@ export async function extractAndRedeemItchLinks(): Promise<void> {
 }
 
 // !DEBUG
-// @ts-ignore
 // unsafeWindow.extractAndRedeemItchLinks =  async (links: string[]): Promise<void> => {
 //   reportItch(undefined, '正在提取链接，请稍候...');
 //   const queue = await prepareItchRedeemQueue(links);

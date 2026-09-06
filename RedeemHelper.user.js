@@ -4,7 +4,7 @@
 // @author          HCLonely
 // @description     统一的游戏 Key 提取与领取辅助脚本，聚合了 Steam / IndieGala / itch.io。
 // @description:en  Unified helper for extracting and redeeming game keys.
-// @version         4.1.2
+// @version         4.1.3
 // @supportURL      https://github.com/HCLonely/RedeemHelper/issues
 // @homepageURL     https://github.com/HCLonely/RedeemHelper
 // @updateURL       https://github.com/HCLonely/RedeemHelper/blob/main/RedeemHelper.user.js?raw=true
@@ -92,7 +92,7 @@
 
   // src/shared/inlineAction.ts
   function exposeInlineAction(action) {
-    let name = "";
+    let name;
     do {
       name = `f${crypto.getRandomValues(new Uint32Array(2)).join("")}`;
     } while (typeof unsafeWindow[name] !== "undefined");
@@ -755,7 +755,7 @@
     return typeof linkage.connected === "boolean" && typeof linkage.has === "function" && typeof linkage.get === "function" && typeof linkage.add === "function" && typeof linkage.update === "function" && typeof linkage.removeOwned === "function";
   }
   function getItchLinkage() {
-    const linkageCode = GM_getValue(ITCH_LINKAGE_CODE_KEY).trim();
+    const linkageCode = GM_getValue(ITCH_LINKAGE_CODE_KEY)?.trim();
     const linkage = linkageCode ? unsafeWindow[linkageCode] : void 0;
     return isItchLinkage(linkage) && linkage.connected ? linkage : null;
   }
@@ -1440,7 +1440,7 @@ ${details}` : message);
     document.body.style.margin = "0";
     document.body.style.minWidth = "320px";
     document.title = "itch.io 自动领取控制台";
-    let config = loadConfig();
+    const config = loadConfig();
     let runtime = loadRuntime();
     const stats = { ...EMPTY_STATS };
     const logEntries = [];
@@ -1790,7 +1790,7 @@ ${details}` : message);
   var redeemItchAction2 = exposeInlineAction((element) => {
     void redeemItchGame(element.dataset.targetUrl || "");
   });
-  var redeemItchBundleAction = exposeInlineAction((element) => {
+  var redeemItchBundleAction = exposeInlineAction(() => {
     void redeemCurrentItchBundle();
   });
   function isDownloadPage(url) {

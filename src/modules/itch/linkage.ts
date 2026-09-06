@@ -18,7 +18,7 @@ function isItchLinkage(value: unknown): value is ItchLinkage {
 }
 
 export function getItchLinkage(): ItchLinkage | null {
-  const linkageCode = GM_getValue<string>(ITCH_LINKAGE_CODE_KEY).trim();
+  const linkageCode = GM_getValue<string>(ITCH_LINKAGE_CODE_KEY)?.trim();
   const linkage = linkageCode ? unsafeWindow[linkageCode] : undefined;
   return isItchLinkage(linkage) && linkage.connected ? linkage : null;
 }

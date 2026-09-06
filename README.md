@@ -87,6 +87,21 @@
 
 联动码重新生成后，需要在 RedeemHelper 中重新输入新码。
 
+## 本地开发
+
+Node.js 版本要求：20.19+（20.x）、22.13+（22.x）或 24+。
+
+```bash
+npm ci
+npm run lint       # 检查 TypeScript 源码和 JavaScript 构建脚本
+npm run lint:fix   # 自动修复可修复的 ESLint 问题
+npm run typecheck  # TypeScript 类型检查
+npm run build     # 更新 ASF 命令快照并构建用户脚本
+npm test          # 依次运行 ESLint、类型检查和构建
+```
+
+ESLint 使用 `eslint.config.mjs` 中的推荐规则，排除构建产物 `RedeemHelper.user.js`、`*.generated.ts` 自动生成文件及本地忽略目录。
+
 ## 常见问题
 
 ### 1. 菜单功能没有出现

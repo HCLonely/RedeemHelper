@@ -38,12 +38,6 @@ const DEFAULT_CONFIG: AutoClaimConfig = {
   keepAlive: false
 };
 
-const EMPTY_RUNTIME: AutoClaimRuntime = {
-  running: false,
-  nextRunAt: null,
-  lastRunAt: null
-};
-
 const EMPTY_STATS: AutoClaimStats = {
   cycles: 0,
   sourceSucceeded: 0,
@@ -184,7 +178,7 @@ export function mountItchAutoConsole(): void {
   document.body.style.minWidth = '320px';
   document.title = 'itch.io 自动领取控制台';
 
-  let config = loadConfig();
+  const config = loadConfig();
   let runtime = loadRuntime();
   const stats = { ...EMPTY_STATS };
   const logEntries: ItchLogEvent[] = [];
