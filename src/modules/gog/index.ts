@@ -87,10 +87,13 @@ async function claimGOGGiveaway(url: string): Promise<boolean> {
 
   const response = await request<GOGClaimResponse, string>({
     url,
-    method: 'POST',
-    data: '{}',
+    method: 'GET',
+    // data: '{}',
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
+      // 'Content-Type': 'application/json'
+      'sec-fetch-dest': 'document',
+      'sec-fetch-mode': 'navigate',
+      'sec-fetch-site': 'none'
     },
     responseType: 'json'
   });

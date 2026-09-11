@@ -4,7 +4,7 @@
 // @author          HCLonely
 // @description     统一的游戏 Key 提取与领取辅助脚本，聚合了 Steam / IndieGala / itch.io。
 // @description:en  Unified helper for extracting and redeeming game keys.
-// @version         4.1.3
+// @version         4.1.4
 // @supportURL      https://github.com/HCLonely/RedeemHelper/issues
 // @homepageURL     https://github.com/HCLonely/RedeemHelper
 // @updateURL       https://github.com/HCLonely/RedeemHelper/blob/main/RedeemHelper.user.js?raw=true
@@ -477,10 +477,13 @@
     });
     const response = await request({
       url,
-      method: "POST",
-      data: "{}",
+      method: "GET",
+      // data: '{}',
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded"
+        // 'Content-Type': 'application/json'
+        "sec-fetch-dest": "document",
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-site": "none"
       },
       responseType: "json"
     });
@@ -760,7 +763,7 @@
     return isItchLinkage(linkage) && linkage.connected ? linkage : null;
   }
   async function setItchLinkageCode() {
-    const savedCode = GM_getValue(ITCH_LINKAGE_CODE_KEY).trim();
+    const savedCode = (GM_getValue(ITCH_LINKAGE_CODE_KEY) || "").trim();
     const input = document.createElement("input");
     input.type = "text";
     input.value = savedCode;
@@ -794,7 +797,7 @@
     const linkage = getItchLinkage();
     if (!linkage) return false;
     try {
-      return Boolean(await linkage.has(game.match(/https?:\/\/(.+?\/[^/]+)/i)?.[1]));
+      return Boolean(await linkage.has(game.match(/https?:\/\/(.+?\/[^/]+)/i)?.[1] || ""));
     } catch (error) {
       reportLinkageFailure("ownership check", error);
       return false;
@@ -804,7 +807,7 @@
     const linkage = getItchLinkage();
     if (!linkage) return [...games];
     try {
-      const unownedGames = await linkage.removeOwned([...games].map((game) => game.match(/https?:\/\/(.+?\/[^/]+)/i)?.[1]));
+      const unownedGames = await linkage.removeOwned([...games].map((game) => game.match(/https?:\/\/(.+?\/[^/]+)/i)?.[1] || ""));
       return Array.isArray(unownedGames) && unownedGames.every((game) => typeof game === "string") ? [...unownedGames].map((game) => `https://${game}`) : [...games];
     } catch {
       return [...games];
@@ -960,7 +963,7 @@ ${details}` : message);
       method: "GET"
     });
     if (response.status === 404) {
-      if (response.text.includes("You do not have access to this page")) {
+      if (response.text?.includes("You do not have access to this page")) {
         return requestFailure(url, "无权访问此页面，可能已被作者修改为页面不可见！", response, reporter);
       }
       return requestFailure(url, "游戏页面不存在！", response, reporter);

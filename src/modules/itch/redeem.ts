@@ -97,7 +97,7 @@ async function checkOwnedAndRedeem(url: string, reporter?: ItchReporter): Promis
   });
 
   if (response.status === 404) {
-    if (response.text.includes('You do not have access to this page')) {
+    if (response.text?.includes('You do not have access to this page')) {
       return requestFailure(url, "无权访问此页面，可能已被作者修改为页面不可见！", response, reporter);
     }
     return requestFailure(url, "游戏页面不存在！", response, reporter);
