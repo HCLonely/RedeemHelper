@@ -114,6 +114,83 @@ export const MODAL_STYLES = `
     flex-wrap: wrap;
   }
 
+  .rh-country-picker .rh-country-picker-hint {
+    margin: 0 0 14px;
+    color: #4b5563;
+    font-size: 13px;
+  }
+
+  .rh-country-picker .rh-country-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+    gap: 10px;
+  }
+
+  .rh-country-picker .rh-country-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 52px;
+    min-width: 0;
+    margin: 0;
+    padding: 12px;
+    box-sizing: border-box;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    background: #f9fafb;
+    color: #374151;
+    cursor: pointer;
+    transition: background-color 150ms ease, border-color 150ms ease;
+  }
+
+  .rh-country-picker .rh-country-option:hover {
+    border-color: #93c5fd;
+    background: #eff6ff;
+  }
+
+  .rh-country-picker .rh-country-option:has(input:checked) {
+    border-color: #2563eb;
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+
+  .rh-country-picker .rh-country-option:focus-within {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+  }
+
+  .rh-country-picker input[type="radio"] {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: #2563eb;
+    cursor: pointer;
+  }
+
+  .rh-country-picker .rh-country-code {
+    font-size: 15px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  .rh-country-picker .rh-country-badge {
+    flex-shrink: 0;
+    margin-left: auto;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #dbeafe;
+    color: #1e40af;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rh-country-picker .rh-country-option {
+      transition: none;
+    }
+  }
+
   .rh-modal-button {
     border: 1px solid transparent;
     border-radius: 8px;

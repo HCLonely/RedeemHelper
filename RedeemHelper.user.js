@@ -4,7 +4,7 @@
 // @author          HCLonely
 // @description     统一的游戏 Key 提取与领取辅助脚本，聚合了 Steam / IndieGala / itch.io。
 // @description:en  Unified helper for extracting and redeeming game keys.
-// @version         4.1.4
+// @version         4.1.5
 // @supportURL      https://github.com/HCLonely/RedeemHelper/issues
 // @homepageURL     https://github.com/HCLonely/RedeemHelper
 // @updateURL       https://github.com/HCLonely/RedeemHelper/blob/main/RedeemHelper.user.js?raw=true
@@ -197,6 +197,83 @@
     justify-content: flex-end;
     gap: 8px;
     flex-wrap: wrap;
+  }
+
+  .rh-country-picker .rh-country-picker-hint {
+    margin: 0 0 14px;
+    color: #4b5563;
+    font-size: 13px;
+  }
+
+  .rh-country-picker .rh-country-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+    gap: 10px;
+  }
+
+  .rh-country-picker .rh-country-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 52px;
+    min-width: 0;
+    margin: 0;
+    padding: 12px;
+    box-sizing: border-box;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    background: #f9fafb;
+    color: #374151;
+    cursor: pointer;
+    transition: background-color 150ms ease, border-color 150ms ease;
+  }
+
+  .rh-country-picker .rh-country-option:hover {
+    border-color: #93c5fd;
+    background: #eff6ff;
+  }
+
+  .rh-country-picker .rh-country-option:has(input:checked) {
+    border-color: #2563eb;
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+
+  .rh-country-picker .rh-country-option:focus-within {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+  }
+
+  .rh-country-picker input[type="radio"] {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: #2563eb;
+    cursor: pointer;
+  }
+
+  .rh-country-picker .rh-country-code {
+    font-size: 15px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  .rh-country-picker .rh-country-badge {
+    flex-shrink: 0;
+    margin-left: auto;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #dbeafe;
+    color: #1e40af;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rh-country-picker .rh-country-option {
+      transition: none;
+    }
   }
 
   .rh-modal-button {
@@ -2345,12 +2422,12 @@ ${details}` : message);
 <tr>
 <td><code>loot@ [Bots] &lt;AppIDs&gt;</code></td>
 <td><code>Master</code></td>
-<td>将指定机器人的所有符合给定 <code>AppIDs</code> 的 <code>LootableTypes</code> 社区物品拾取到其 <code>SteamUserPermissions</code> 属性中设置的 <code>Master</code> 用户（如果有多个则取 steamID 最小的）。 此命令与 <code>loot%</code> 相反。</td>
+<td>将指定机器人的所有符合给定 <code>AppIDs</code> 的 <code>LootableTypes</code> 社区物品拾取到其 <code>SteamUserPermissions</code> 属性中设置的 <code>Master</code> 用户（如果有多个则取 steamID 最小的）。此命令与 <code>loot%</code> 相反。</td>
 <td><button type="button" class="rh-modal-button rh-asf-use" data-command="loot@ [Bots] &lt;AppIDs&gt;">使用</button></td></tr>
 <tr>
 <td><code>loot% [Bots] &lt;AppIDs&gt;</code></td>
 <td><code>Master</code></td>
-<td>将指定机器人的所有不符合给定 <code>AppIDs</code> 的 <code>LootableTypes</code> 社区物品拾取到其 <code>SteamUserPermissions</code> 属性中设置的 <code>Master</code> 用户（如果有多个则取 steamID 最小的）。 此命令与 <code>loot@</code> 相反。</td>
+<td>将指定机器人的所有不符合给定 <code>AppIDs</code> 的 <code>LootableTypes</code> 社区物品拾取到其 <code>SteamUserPermissions</code> 属性中设置的 <code>Master</code> 用户（如果有多个则取 steamID 最小的）。此命令与 <code>loot@</code> 相反。</td>
 <td><button type="button" class="rh-modal-button rh-asf-use" data-command="loot% [Bots] &lt;AppIDs&gt;">使用</button></td></tr>
 <tr>
 <td><code>loot^ [Bots] &lt;AppID&gt; &lt;ContextID&gt;</code></td>
@@ -2400,17 +2477,17 @@ ${details}` : message);
 <tr>
 <td><code>pause~ [Bots]</code></td>
 <td><code>FamilySharing</code></td>
-<td>临时暂停指定机器人的自动挂卡模块。 挂卡进程将会在下次游戏事件或者机器人断开连接时自动恢复。 您可以 <code>resume</code> 以恢复挂卡。</td>
+<td>临时暂停指定机器人的自动挂卡模块。挂卡进程将会在下次游戏事件或者机器人断开连接时自动恢复。您可以 <code>resume</code> 以恢复挂卡。</td>
 <td><button type="button" class="rh-modal-button rh-asf-use" data-command="pause~ [Bots]">使用</button></td></tr>
 <tr>
 <td><code>pause&amp; [Bots] &lt;Seconds&gt;</code></td>
 <td><code>Operator</code></td>
-<td>临时暂停指定机器人的自动挂卡模块 <code>Seconds</code> 秒。 之后，挂卡模块会自动恢复。</td>
+<td>临时暂停指定机器人的自动挂卡模块 <code>Seconds</code> 秒。之后，挂卡模块会自动恢复。</td>
 <td><button type="button" class="rh-modal-button rh-asf-use" data-command="pause&amp; [Bots] &lt;Seconds&gt;">使用</button></td></tr>
 <tr>
 <td><code>play [Bots] &lt;AppIDs,GameName&gt;</code></td>
 <td><code>Master</code></td>
-<td>切换到手动挂卡——使指定机器人运行给定的 <code>AppIDs</code>，并且可选自定义 <code>GameName</code> 为游戏名称。 若要此功能正常工作，您的 Steam 帐户<strong>必须</strong>拥有所有您指定的 <code>AppIDs</code> 的有效许可，包括免费游戏。 使用 <code>reset</code> 或 <code>resume</code> 命令恢复。</td>
+<td>切换到手动挂卡——使指定机器人运行给定的 <code>AppIDs</code>，并且可选自定义 <code>GameName</code> 为游戏名称。若要此功能正常工作，您的 Steam 帐户<strong>必须</strong>拥有所有您指定的 <code>AppIDs</code> 的有效许可，包括免费游戏。使用 <code>reset</code> 或 <code>resume</code> 命令恢复。</td>
 <td><button type="button" class="rh-modal-button rh-asf-use" data-command="play [Bots] &lt;AppIDs,GameName&gt;">使用</button></td></tr>
 <tr>
 <td><code>points [Bots]</code></td>
@@ -2435,7 +2512,7 @@ ${details}` : message);
 <tr>
 <td><code>redeempoints [Bots] &lt;DefinitionIDs&gt;</code></td>
 <td><code>Operator</code></td>
-<td>为指定机器人以 <a href="https://store.steampowered.com/points/shop" rel="nofollow"><strong>Steam 点数</strong></a>兑换给定物品。 默认只允许免费物品，如果要无条件兑换物品，包括付费物品，则需要在每个符合条件的物品 <code>DefinitionID</code> 结尾添加 <code>!</code> 符号。</td>
+<td>为指定机器人以 <a href="https://store.steampowered.com/points/shop" rel="nofollow"><strong>Steam 点数</strong></a>兑换给定物品。默认只允许免费物品，如果要无条件兑换物品，包括付费物品，则需要在每个符合条件的物品 <code>DefinitionID</code> 结尾添加 <code>!</code> 符号。</td>
 <td><button type="button" class="rh-modal-button rh-asf-use" data-command="redeempoints [Bots] &lt;DefinitionIDs&gt;">使用</button></td></tr>
 <tr>
 <td><code>reset [Bots]</code></td>
@@ -2505,12 +2582,12 @@ ${details}` : message);
 <tr>
 <td><code>transfer@ [Bots] &lt;AppIDs&gt; &lt;TargetBot&gt;</code></td>
 <td><code>Master</code></td>
-<td>将指定机器人的所有符合给定 <code>AppIDs</code> 的 <code>TransferableTypes</code> 社区物品转移到一个目标机器人。 此命令与 <code>transfer%</code> 相反。</td>
+<td>将指定机器人的所有符合给定 <code>AppIDs</code> 的 <code>TransferableTypes</code> 社区物品转移到一个目标机器人。此命令与 <code>transfer%</code> 相反。</td>
 <td><button type="button" class="rh-modal-button rh-asf-use" data-command="transfer@ [Bots] &lt;AppIDs&gt; &lt;TargetBot&gt;">使用</button></td></tr>
 <tr>
 <td><code>transfer% [Bots] &lt;AppIDs&gt; &lt;TargetBot&gt;</code></td>
 <td><code>Master</code></td>
-<td>将指定机器人的所有不符合给定 <code>AppIDs</code> 的 <code>TransferableTypes</code> 社区物品转移到一个目标机器人。 此命令与 <code>transfer@</code> 相反。</td>
+<td>将指定机器人的所有不符合给定 <code>AppIDs</code> 的 <code>TransferableTypes</code> 社区物品转移到一个目标机器人。此命令与 <code>transfer@</code> 相反。</td>
 <td><button type="button" class="rh-modal-button rh-asf-use" data-command="transfer% [Bots] &lt;AppIDs&gt; &lt;TargetBot&gt;">使用</button></td></tr>
 <tr>
 <td><code>transfer^ [Bots] &lt;AppID&gt; &lt;ContextID&gt; &lt;TargetBot&gt;</code></td>
@@ -2530,12 +2607,12 @@ ${details}` : message);
 <tr>
 <td><code>update [Channel]</code></td>
 <td><code>Owner</code></td>
-<td>在 GitHub 上检查 ASF 新版本，如果可用则更新。 通常这会每隔 <code>UpdatePeriod</code> 自动执行一次。 可选的 <code>Channel</code> 参数指定 <strong><a href="https://github.com/JustArchiNET/ArchiSteamFarm/wiki/Configuration-zh-CN#updatechannel"><code>UpdateChannel</code></a></strong>，如果未提供，则默认使用全局设置中的值。 <code>Channel</code> 可以用 <code>!</code> 字符结尾，这会强制在指定频道上更新——包括降级等操作。</td>
+<td>在 GitHub 上检查 ASF 新版本，如果可用则更新。通常这会每隔 <code>UpdatePeriod</code> 自动执行一次。可选的 <code>Channel</code> 参数指定 <strong><a href="https://github.com/JustArchiNET/ArchiSteamFarm/wiki/Configuration-zh-CN#updatechannel"><code>UpdateChannel</code></a></strong>，如果未提供，则默认使用全局设置中的值。 <code>Channel</code> 可以用 <code>!</code> 字符结尾，这会强制在指定频道上更新——包括降级等操作。</td>
 <td><button type="button" class="rh-modal-button rh-asf-use" data-command="update [Channel]">使用</button></td></tr>
 <tr>
 <td><code>updateplugins [Channel] [Plugins]</code></td>
 <td><code>Owner</code></td>
-<td>更新指定的插件。 如果插件支持多个更新频道，可选的 <code>Channel</code> 参数允许您选择不同的 <strong><a href="https://github.com/JustArchiNET/ArchiSteamFarm/wiki/Configuration-zh-CN#updatechannel"><code>UpdateChannel</code></a></strong> 进行更新。 <code>Channel</code> 可以用 <code>!</code> 字符结尾，这会强制在指定频道上更新——包括降级等操作，但具体的功能取决于插件自身。 如果不指定 <code>Plugins</code>，则所有由 <strong><a href="https://github.com/JustArchiNET/ArchiSteamFarm/wiki/Configuration-zh-CN#pluginsupdatelist"><code>PluginsUpdateList</code></a></strong> 和 <strong><a href="https://github.com/JustArchiNET/ArchiSteamFarm/wiki/Configuration-zh-CN#pluginsupdatemode"><code>PluginsUpdateMode</code></a></strong> 配置判断为允许自动更新的插件都会被更新。 如果您要更新指定插件，特别是已经默认禁用自动更新的，则需要同时提供 <code>Channel</code> 和 <code>Plugins</code> 参数，这样 ASF 就会忽略其自动更新设置，强行更新它们。</td>
+<td>更新指定的插件。如果插件支持多个更新频道，可选的 <code>Channel</code> 参数允许您选择不同的 <strong><a href="https://github.com/JustArchiNET/ArchiSteamFarm/wiki/Configuration-zh-CN#updatechannel"><code>UpdateChannel</code></a></strong> 进行更新。 <code>Channel</code> 可以用 <code>!</code> 字符结尾，这会强制在指定频道上更新——包括降级等操作，但具体的功能取决于插件自身。如果不指定 <code>Plugins</code>，则所有由 <strong><a href="https://github.com/JustArchiNET/ArchiSteamFarm/wiki/Configuration-zh-CN#pluginsupdatelist"><code>PluginsUpdateList</code></a></strong> 和 <strong><a href="https://github.com/JustArchiNET/ArchiSteamFarm/wiki/Configuration-zh-CN#pluginsupdatemode"><code>PluginsUpdateMode</code></a></strong> 配置判断为允许自动更新的插件都会被更新。如果您要更新指定插件，特别是已经默认禁用自动更新的，则需要同时提供 <code>Channel</code> 和 <code>Plugins</code> 参数，这样 ASF 就会忽略其自动更新设置，强行更新它们。</td>
 <td><button type="button" class="rh-modal-button rh-asf-use" data-command="updateplugins [Channel] [Plugins]">使用</button></td></tr>
 <tr>
 <td><code>version</code></td>
@@ -2984,12 +3061,12 @@ ${details}` : message);
   }
   function changeStoreCountryFlow() {
     void fetchCartData().then((cartData) => {
-      const { cartConfig, userInfo } = parseCartData(cartData);
-      if (!cartConfig || !userInfo || Object.keys(cartConfig.rgUserCountryOptions).length <= 2) {
+      const { currentArea, areas } = parseCartData(cartData);
+      if (!currentArea || !areas || areas.length < 2) {
         showSwalMessage({ title: "需要挂相应地区的梯子！", icon: "warning" });
         return;
       }
-      showCountryChangeDialog(cartConfig, userInfo, cartData);
+      showCountryChangeDialog(currentArea, areas);
     }).catch(() => showSwalMessage({ title: "获取当前国家/地区失败！", icon: "error" }));
     showSwalMessage({ title: "正在获取当前国家/地区...", icon: "info" });
   }
@@ -3005,32 +3082,61 @@ ${details}` : message);
     return temp.textContent || temp.innerText || "";
   }
   function parseCartData(data) {
-    const cartConfig = JSON.parse(decodeHtml(data.match(/data-cart_config="(.*?)"/)?.[1] || ""));
-    const userInfo = JSON.parse(decodeHtml(data.match(/data-userinfo="(.*?)"/)?.[1] || ""));
-    return { cartConfig, userInfo };
+    const config = JSON.parse(decodeHtml(data.match(/id="valve-ssr-data".+?>([\w\W]+?)<\/script>/)?.[1] || ""));
+    const areasInfo = JSON.parse(config.loaderData?.find((LD) => {
+      return LD.includes("countryOptions");
+    }));
+    if (!areasInfo.countryOptions || typeof config.UserConfig?.country_code !== "string") {
+      return {};
+    }
+    const areas = Object.values(areasInfo.countryOptions).filter((area) => {
+      return typeof area === "string" && /^[A-Z]{2}$/.test(area);
+    });
+    return {
+      currentArea: config.UserConfig.country_code,
+      areas
+    };
   }
-  function bindCurrencyChangeOption() {
-    const intervalId = window.setInterval(() => {
-      const options = document.querySelectorAll(".currency_change_option");
-      if (options.length > 0) {
-        options.forEach((option) => option.addEventListener("click", () => {
-          const newCountry = option.dataset.country;
-          if (newCountry) changeCountry(newCountry);
-        }));
-        window.clearInterval(intervalId);
+  function showCountryChangeDialog(currentArea, areas) {
+    const content = document.createElement("div");
+    content.className = "rh-country-picker";
+    const hint = document.createElement("p");
+    hint.className = "rh-country-picker-hint";
+    hint.textContent = "选择目标国家/地区后立即切换。";
+    const options = document.createElement("div");
+    options.className = "rh-country-options";
+    options.setAttribute("role", "radiogroup");
+    options.setAttribute("aria-label", "目标国家/地区（选择后立即切换）");
+    content.append(hint, options);
+    areas.forEach((area) => {
+      const label = document.createElement("label");
+      label.className = "rh-country-option";
+      const radio = document.createElement("input");
+      radio.type = "radio";
+      radio.name = "steam-country";
+      radio.value = area;
+      radio.checked = area.toUpperCase() === currentArea.toUpperCase();
+      radio.addEventListener("change", () => {
+        if (radio.checked) changeCountry(radio.value);
+      });
+      const name = document.createElement("span");
+      name.className = "rh-country-code";
+      name.textContent = area;
+      label.append(radio, name);
+      if (radio.checked) {
+        const badge = document.createElement("span");
+        badge.className = "rh-country-badge";
+        badge.textContent = "当前";
+        label.appendChild(badge);
       }
-    }, 500);
-    window.setTimeout(() => window.clearInterval(intervalId), 1e4);
-  }
-  function showCountryChangeDialog(cartConfig, userInfo, cartData) {
-    const divContent = cartData.match(/<div class="currency_change_options">([\w\W]*?)<p/i)?.[1]?.trim();
-    const div = `${divContent || ""}</div>`;
+      options.appendChild(label);
+    });
     showSwalMessage({
       closeOnClickOutside: false,
-      title: `当前国家/地区：${cartConfig.rgUserCountryOptions[userInfo.country_code] || userInfo.country_code}`,
-      content: htmlToElement3(`<div>${div}</div>`)
+      title: `当前国家/地区：${currentArea}`,
+      content,
+      buttons: { confirm: "关闭" }
     });
-    bindCurrencyChangeOption();
   }
   function changeCountry(country) {
     showSwalMessage({ closeOnClickOutside: false, icon: "info", title: "正在更换国家/地区..." });
@@ -3041,17 +3147,10 @@ ${details}` : message);
       headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" }
     }).then(() => {
       void fetchCartData().then((data) => {
-        const { cartConfig, userInfo } = parseCartData(data);
-        const divContent = data.match(/<div class="currency_change_options">([\w\W]*?)<p/i)?.[1]?.trim();
-        const div = `${divContent || ""}</div>`;
-        if (userInfo.country_code === country) {
+        const { currentArea, areas } = parseCartData(data);
+        if (currentArea === country) {
           showSwalMessage({ title: "更换成功！", icon: "success" }).then(() => {
-            showSwalMessage({
-              closeOnClickOutside: false,
-              title: `当前国家/地区：${cartConfig.rgUserCountryOptions[userInfo.country_code] || userInfo.country_code}`,
-              content: htmlToElement3(`<div>${div}</div>`)
-            });
-            bindCurrencyChangeOption();
+            showCountryChangeDialog(currentArea, areas ?? []);
           });
         } else {
           showSwalMessage({ title: "更换失败！", icon: "error" });

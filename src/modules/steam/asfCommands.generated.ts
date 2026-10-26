@@ -140,12 +140,12 @@ export const ASF_COMMANDS_HTML = `<table role="table" class="hclonely">
 <tr>
 <td><code>loot@ [Bots] &lt;AppIDs&gt;</code></td>
 <td><code>Master</code></td>
-<td>将指定机器人的所有符合给定 <code>AppIDs</code> 的 <code>LootableTypes</code> 社区物品拾取到其 <code>SteamUserPermissions</code> 属性中设置的 <code>Master</code> 用户（如果有多个则取 steamID 最小的）。 此命令与 <code>loot%</code> 相反。</td>
+<td>将指定机器人的所有符合给定 <code>AppIDs</code> 的 <code>LootableTypes</code> 社区物品拾取到其 <code>SteamUserPermissions</code> 属性中设置的 <code>Master</code> 用户（如果有多个则取 steamID 最小的）。此命令与 <code>loot%</code> 相反。</td>
 <td><button type="button" class="rh-modal-button rh-asf-use" data-command="loot@ [Bots] &lt;AppIDs&gt;">使用</button></td></tr>
 <tr>
 <td><code>loot% [Bots] &lt;AppIDs&gt;</code></td>
 <td><code>Master</code></td>
-<td>将指定机器人的所有不符合给定 <code>AppIDs</code> 的 <code>LootableTypes</code> 社区物品拾取到其 <code>SteamUserPermissions</code> 属性中设置的 <code>Master</code> 用户（如果有多个则取 steamID 最小的）。 此命令与 <code>loot@</code> 相反。</td>
+<td>将指定机器人的所有不符合给定 <code>AppIDs</code> 的 <code>LootableTypes</code> 社区物品拾取到其 <code>SteamUserPermissions</code> 属性中设置的 <code>Master</code> 用户（如果有多个则取 steamID 最小的）。此命令与 <code>loot@</code> 相反。</td>
 <td><button type="button" class="rh-modal-button rh-asf-use" data-command="loot% [Bots] &lt;AppIDs&gt;">使用</button></td></tr>
 <tr>
 <td><code>loot^ [Bots] &lt;AppID&gt; &lt;ContextID&gt;</code></td>
@@ -195,17 +195,17 @@ export const ASF_COMMANDS_HTML = `<table role="table" class="hclonely">
 <tr>
 <td><code>pause~ [Bots]</code></td>
 <td><code>FamilySharing</code></td>
-<td>临时暂停指定机器人的自动挂卡模块。 挂卡进程将会在下次游戏事件或者机器人断开连接时自动恢复。 您可以 <code>resume</code> 以恢复挂卡。</td>
+<td>临时暂停指定机器人的自动挂卡模块。挂卡进程将会在下次游戏事件或者机器人断开连接时自动恢复。您可以 <code>resume</code> 以恢复挂卡。</td>
 <td><button type="button" class="rh-modal-button rh-asf-use" data-command="pause~ [Bots]">使用</button></td></tr>
 <tr>
 <td><code>pause&amp; [Bots] &lt;Seconds&gt;</code></td>
 <td><code>Operator</code></td>
-<td>临时暂停指定机器人的自动挂卡模块 <code>Seconds</code> 秒。 之后，挂卡模块会自动恢复。</td>
+<td>临时暂停指定机器人的自动挂卡模块 <code>Seconds</code> 秒。之后，挂卡模块会自动恢复。</td>
 <td><button type="button" class="rh-modal-button rh-asf-use" data-command="pause&amp; [Bots] &lt;Seconds&gt;">使用</button></td></tr>
 <tr>
 <td><code>play [Bots] &lt;AppIDs,GameName&gt;</code></td>
 <td><code>Master</code></td>
-<td>切换到手动挂卡——使指定机器人运行给定的 <code>AppIDs</code>，并且可选自定义 <code>GameName</code> 为游戏名称。 若要此功能正常工作，您的 Steam 帐户<strong>必须</strong>拥有所有您指定的 <code>AppIDs</code> 的有效许可，包括免费游戏。 使用 <code>reset</code> 或 <code>resume</code> 命令恢复。</td>
+<td>切换到手动挂卡——使指定机器人运行给定的 <code>AppIDs</code>，并且可选自定义 <code>GameName</code> 为游戏名称。若要此功能正常工作，您的 Steam 帐户<strong>必须</strong>拥有所有您指定的 <code>AppIDs</code> 的有效许可，包括免费游戏。使用 <code>reset</code> 或 <code>resume</code> 命令恢复。</td>
 <td><button type="button" class="rh-modal-button rh-asf-use" data-command="play [Bots] &lt;AppIDs,GameName&gt;">使用</button></td></tr>
 <tr>
 <td><code>points [Bots]</code></td>
@@ -230,7 +230,7 @@ export const ASF_COMMANDS_HTML = `<table role="table" class="hclonely">
 <tr>
 <td><code>redeempoints [Bots] &lt;DefinitionIDs&gt;</code></td>
 <td><code>Operator</code></td>
-<td>为指定机器人以 <a href="https://store.steampowered.com/points/shop" rel="nofollow"><strong>Steam 点数</strong></a>兑换给定物品。 默认只允许免费物品，如果要无条件兑换物品，包括付费物品，则需要在每个符合条件的物品 <code>DefinitionID</code> 结尾添加 <code>!</code> 符号。</td>
+<td>为指定机器人以 <a href="https://store.steampowered.com/points/shop" rel="nofollow"><strong>Steam 点数</strong></a>兑换给定物品。默认只允许免费物品，如果要无条件兑换物品，包括付费物品，则需要在每个符合条件的物品 <code>DefinitionID</code> 结尾添加 <code>!</code> 符号。</td>
 <td><button type="button" class="rh-modal-button rh-asf-use" data-command="redeempoints [Bots] &lt;DefinitionIDs&gt;">使用</button></td></tr>
 <tr>
 <td><code>reset [Bots]</code></td>
@@ -300,12 +300,12 @@ export const ASF_COMMANDS_HTML = `<table role="table" class="hclonely">
 <tr>
 <td><code>transfer@ [Bots] &lt;AppIDs&gt; &lt;TargetBot&gt;</code></td>
 <td><code>Master</code></td>
-<td>将指定机器人的所有符合给定 <code>AppIDs</code> 的 <code>TransferableTypes</code> 社区物品转移到一个目标机器人。 此命令与 <code>transfer%</code> 相反。</td>
+<td>将指定机器人的所有符合给定 <code>AppIDs</code> 的 <code>TransferableTypes</code> 社区物品转移到一个目标机器人。此命令与 <code>transfer%</code> 相反。</td>
 <td><button type="button" class="rh-modal-button rh-asf-use" data-command="transfer@ [Bots] &lt;AppIDs&gt; &lt;TargetBot&gt;">使用</button></td></tr>
 <tr>
 <td><code>transfer% [Bots] &lt;AppIDs&gt; &lt;TargetBot&gt;</code></td>
 <td><code>Master</code></td>
-<td>将指定机器人的所有不符合给定 <code>AppIDs</code> 的 <code>TransferableTypes</code> 社区物品转移到一个目标机器人。 此命令与 <code>transfer@</code> 相反。</td>
+<td>将指定机器人的所有不符合给定 <code>AppIDs</code> 的 <code>TransferableTypes</code> 社区物品转移到一个目标机器人。此命令与 <code>transfer@</code> 相反。</td>
 <td><button type="button" class="rh-modal-button rh-asf-use" data-command="transfer% [Bots] &lt;AppIDs&gt; &lt;TargetBot&gt;">使用</button></td></tr>
 <tr>
 <td><code>transfer^ [Bots] &lt;AppID&gt; &lt;ContextID&gt; &lt;TargetBot&gt;</code></td>
@@ -325,12 +325,12 @@ export const ASF_COMMANDS_HTML = `<table role="table" class="hclonely">
 <tr>
 <td><code>update [Channel]</code></td>
 <td><code>Owner</code></td>
-<td>在 GitHub 上检查 ASF 新版本，如果可用则更新。 通常这会每隔 <code>UpdatePeriod</code> 自动执行一次。 可选的 <code>Channel</code> 参数指定 <strong><a href="https://github.com/JustArchiNET/ArchiSteamFarm/wiki/Configuration-zh-CN#updatechannel"><code>UpdateChannel</code></a></strong>，如果未提供，则默认使用全局设置中的值。 <code>Channel</code> 可以用 <code>!</code> 字符结尾，这会强制在指定频道上更新——包括降级等操作。</td>
+<td>在 GitHub 上检查 ASF 新版本，如果可用则更新。通常这会每隔 <code>UpdatePeriod</code> 自动执行一次。可选的 <code>Channel</code> 参数指定 <strong><a href="https://github.com/JustArchiNET/ArchiSteamFarm/wiki/Configuration-zh-CN#updatechannel"><code>UpdateChannel</code></a></strong>，如果未提供，则默认使用全局设置中的值。 <code>Channel</code> 可以用 <code>!</code> 字符结尾，这会强制在指定频道上更新——包括降级等操作。</td>
 <td><button type="button" class="rh-modal-button rh-asf-use" data-command="update [Channel]">使用</button></td></tr>
 <tr>
 <td><code>updateplugins [Channel] [Plugins]</code></td>
 <td><code>Owner</code></td>
-<td>更新指定的插件。 如果插件支持多个更新频道，可选的 <code>Channel</code> 参数允许您选择不同的 <strong><a href="https://github.com/JustArchiNET/ArchiSteamFarm/wiki/Configuration-zh-CN#updatechannel"><code>UpdateChannel</code></a></strong> 进行更新。 <code>Channel</code> 可以用 <code>!</code> 字符结尾，这会强制在指定频道上更新——包括降级等操作，但具体的功能取决于插件自身。 如果不指定 <code>Plugins</code>，则所有由 <strong><a href="https://github.com/JustArchiNET/ArchiSteamFarm/wiki/Configuration-zh-CN#pluginsupdatelist"><code>PluginsUpdateList</code></a></strong> 和 <strong><a href="https://github.com/JustArchiNET/ArchiSteamFarm/wiki/Configuration-zh-CN#pluginsupdatemode"><code>PluginsUpdateMode</code></a></strong> 配置判断为允许自动更新的插件都会被更新。 如果您要更新指定插件，特别是已经默认禁用自动更新的，则需要同时提供 <code>Channel</code> 和 <code>Plugins</code> 参数，这样 ASF 就会忽略其自动更新设置，强行更新它们。</td>
+<td>更新指定的插件。如果插件支持多个更新频道，可选的 <code>Channel</code> 参数允许您选择不同的 <strong><a href="https://github.com/JustArchiNET/ArchiSteamFarm/wiki/Configuration-zh-CN#updatechannel"><code>UpdateChannel</code></a></strong> 进行更新。 <code>Channel</code> 可以用 <code>!</code> 字符结尾，这会强制在指定频道上更新——包括降级等操作，但具体的功能取决于插件自身。如果不指定 <code>Plugins</code>，则所有由 <strong><a href="https://github.com/JustArchiNET/ArchiSteamFarm/wiki/Configuration-zh-CN#pluginsupdatelist"><code>PluginsUpdateList</code></a></strong> 和 <strong><a href="https://github.com/JustArchiNET/ArchiSteamFarm/wiki/Configuration-zh-CN#pluginsupdatemode"><code>PluginsUpdateMode</code></a></strong> 配置判断为允许自动更新的插件都会被更新。如果您要更新指定插件，特别是已经默认禁用自动更新的，则需要同时提供 <code>Channel</code> 和 <code>Plugins</code> 参数，这样 ASF 就会忽略其自动更新设置，强行更新它们。</td>
 <td><button type="button" class="rh-modal-button rh-asf-use" data-command="updateplugins [Channel] [Plugins]">使用</button></td></tr>
 <tr>
 <td><code>version</code></td>

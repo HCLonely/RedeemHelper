@@ -18,14 +18,6 @@ type RefreshTokenResponse = {
   auth: string;
 };
 
-type CartConfig = {
-  rgUserCountryOptions: Record<string, string>;
-};
-
-type UserInfo = {
-  country_code: string;
-};
-
 const STEAM_HOSTS = {
   STORE: 'store.steampowered.com',
   LOGIN: 'login.steampowered.com'
@@ -265,12 +257,12 @@ function safeGlobalSessionID(): string {
 export function changeStoreCountryFlow(): void {
   void fetchCartData()
     .then((cartData) => {
-      const { cartConfig, userInfo } = parseCartData(cartData);
-      if (!cartConfig || !userInfo || Object.keys(cartConfig.rgUserCountryOptions).length <= 2) {
+      const { currentArea, areas } = parseCartData(cartData);
+      if (!currentArea || !areas || areas.length < 2) {
         showSwalMessage({ title: '需要挂相应地区的梯子！', icon: 'warning' });
         return;
       }
-      showCountryChangeDialog(cartConfig, userInfo, cartData);
+      showCountryChangeDialog(currentArea, areas);
     })
     .catch(() => showSwalMessage({ title: '获取当前国家/地区失败！', icon: 'error' }));
 
@@ -290,36 +282,71 @@ function decodeHtml(value: string): string {
   return temp.textContent || temp.innerText || '';
 }
 
-function parseCartData(data: string): { cartConfig: CartConfig; userInfo: UserInfo } {
-  const cartConfig = JSON.parse(decodeHtml(data.match(/data-cart_config="(.*?)"/)?.[1] || '')) as CartConfig;
-  const userInfo = JSON.parse(decodeHtml(data.match(/data-userinfo="(.*?)"/)?.[1] || '')) as UserInfo;
-  return { cartConfig, userInfo };
+function parseCartData(data: string): { currentArea?: string; areas?: string[] } {
+  const config = JSON.parse(decodeHtml(data.match(/id="valve-ssr-data".+?>([\w\W]+?)<\/script>/)?.[1] || ''));
+  const areasInfo = JSON.parse(config.loaderData?.find((LD: string) => {
+    return LD.includes('countryOptions');
+  }));
+  if (!areasInfo.countryOptions || typeof config.UserConfig?.country_code !== 'string') {
+    return {};
+  }
+  const areas = Object.values(areasInfo.countryOptions).filter((area): area is string => {
+    return typeof area === 'string' && /^[A-Z]{2}$/.test(area);
+  });
+  return {
+    currentArea: config.UserConfig.country_code,
+    areas
+  };
 }
 
-function bindCurrencyChangeOption(): void {
-  const intervalId = window.setInterval(() => {
-    const options = document.querySelectorAll<HTMLElement>('.currency_change_option');
-    if (options.length > 0) {
-      options.forEach((option) => option.addEventListener('click', () => {
-        const newCountry = option.dataset.country;
-        if (newCountry) changeCountry(newCountry);
-      }));
-      window.clearInterval(intervalId);
+function showCountryChangeDialog(currentArea: string, areas: string[]): void {
+  const content = document.createElement('div');
+  content.className = 'rh-country-picker';
+
+  const hint = document.createElement('p');
+  hint.className = 'rh-country-picker-hint';
+  hint.textContent = '选择目标国家/地区后立即切换。';
+
+  const options = document.createElement('div');
+  options.className = 'rh-country-options';
+  options.setAttribute('role', 'radiogroup');
+  options.setAttribute('aria-label', '目标国家/地区（选择后立即切换）');
+  content.append(hint, options);
+
+  areas.forEach((area) => {
+    const label = document.createElement('label');
+    label.className = 'rh-country-option';
+
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'steam-country';
+    radio.value = area;
+    radio.checked = area.toUpperCase() === currentArea.toUpperCase();
+    radio.addEventListener('change', () => {
+      if (radio.checked) changeCountry(radio.value);
+    });
+
+    const name = document.createElement('span');
+    name.className = 'rh-country-code';
+    name.textContent = area;
+    label.append(radio, name);
+
+    if (radio.checked) {
+      const badge = document.createElement('span');
+      badge.className = 'rh-country-badge';
+      badge.textContent = '当前';
+      label.appendChild(badge);
     }
-  }, 500);
 
-  window.setTimeout(() => window.clearInterval(intervalId), 10000);
-}
+    options.appendChild(label);
+  });
 
-function showCountryChangeDialog(cartConfig: CartConfig, userInfo: UserInfo, cartData: string): void {
-  const divContent = cartData.match(/<div class="currency_change_options">([\w\W]*?)<p/i)?.[1]?.trim();
-  const div = `${divContent || ''}</div>`;
   showSwalMessage({
     closeOnClickOutside: false,
-    title: `当前国家/地区：${cartConfig.rgUserCountryOptions[userInfo.country_code] || userInfo.country_code}`,
-    content: htmlToElement(`<div>${div}</div>`)
+    title: `当前国家/地区：${currentArea}`,
+    content,
+    buttons: { confirm: '关闭' }
   });
-  bindCurrencyChangeOption();
 }
 
 export function changeCountry(country: string): void {
@@ -332,17 +359,10 @@ export function changeCountry(country: string): void {
   }).then(() => {
     void fetchCartData()
       .then((data) => {
-        const { cartConfig, userInfo } = parseCartData(data);
-        const divContent = data.match(/<div class="currency_change_options">([\w\W]*?)<p/i)?.[1]?.trim();
-        const div = `${divContent || ''}</div>`;
-        if (userInfo.country_code === country) {
+        const { currentArea, areas } = parseCartData(data);
+        if (currentArea === country) {
           showSwalMessage({ title: '更换成功！', icon: 'success' }).then(() => {
-            showSwalMessage({
-              closeOnClickOutside: false,
-              title: `当前国家/地区：${cartConfig.rgUserCountryOptions[userInfo.country_code] || userInfo.country_code}`,
-              content: htmlToElement(`<div>${div}</div>`)
-            });
-            bindCurrencyChangeOption();
+            showCountryChangeDialog(currentArea, areas ?? []);
           });
         } else {
           showSwalMessage({ title: '更换失败！', icon: 'error' });
